@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#12233b">
 <title>Netball Live Scoreboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root{
+    color-scheme: dark;
     --court-teal:#0b3d3a;
     --court-green:#0f5c4c;
     --chalk:#f5f1e6;
@@ -794,19 +797,23 @@
   }
 
   /* ---------- polling / ticking ---------- */
+  let remoteListenerKey = null;
   function startLoops(){
     stopLoops();
-    pollTimer = setInterval(async ()=>{
-      const remote = await loadRemoteState();
-      if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
-        localState = remote;
-        render();
-      }
-    }, 1500);
+    if(matchCode){
+      remoteListenerKey = storageKeyFor(matchCode);
+      fbDb.ref(remoteListenerKey).on('value', (snap)=>{
+        const remote = snap.val();
+        if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
+          localState = remote;
+          render();
+        }
+      });
+    }
     tickTimer = setInterval(render, 1000);
   }
   function stopLoops(){
-    if(pollTimer) clearInterval(pollTimer);
+    if(remoteListenerKey){ fbDb.ref(remoteListenerKey).off('value'); remoteListenerKey = null; }
     if(tickTimer) clearInterval(tickTimer);
   }
 
