@@ -557,12 +557,69 @@
   let pollTimer = null;
   let tickTimer = null;
   let matchCode = null;
+  let myControlToken = null;
+  let controlLockRef = null;
 
   function generateCode(){
     return String(Math.floor(1000 + Math.random()*9000));
   }
+  async function generateFreshCode(){
+    const STALE_MS = 20*60*60*1000; // 20 hours — matches older than this are treated as finished and reusable
+    for(let i=0;i<15;i++){
+      const code = generateCode();
+      try{
+        const snap = await fbDb.ref(storageKeyFor(code)).once('value');
+        if(!snap.exists()) return code;
+        const existing = snap.val();
+        const age = Date.now() - (existing && existing.createdAt ? existing.createdAt : 0);
+        if(age > STALE_MS){
+          // old finished match — reclaim this code for the new match
+          try{ await fbDb.ref(storageKeyFor(code)).remove(); }catch(e){}
+          return code;
+        }
+      }catch(e){
+        console.error('scoreboard: code uniqueness check failed', e);
+        return code; // fall back rather than block match creation
+      }
+    }
+    return generateCode(); // extremely unlikely fallback after 15 tries
+  }
   function storageKeyFor(code){
     return STORAGE_PREFIX + code;
+  }
+  function lockKeyFor(code){
+    return STORAGE_PREFIX + code + '_lock';
+  }
+
+  async function claimControlLock(code){
+    const ref = fbDb.ref(lockKeyFor(code));
+    const token = 'ctrl_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    let result;
+    try{
+      result = await ref.transaction(current => {
+        if(current === null || current === undefined) return { token, at: Date.now() };
+        return; // already locked by someone else — abort, leave existing value untouched
+      });
+    }catch(e){
+      console.error('scoreboard: lock claim failed', e);
+      return false;
+    }
+    if(result && result.committed){
+      myControlToken = token;
+      controlLockRef = ref;
+      ref.onDisconnect().remove();
+      return true;
+    }
+    return false;
+  }
+
+  function releaseControlLock(){
+    if(controlLockRef){
+      try{ controlLockRef.onDisconnect().cancel(); }catch(e){}
+      try{ controlLockRef.remove(); }catch(e){}
+    }
+    controlLockRef = null;
+    myControlToken = null;
   }
   function safeSetHash(hash){
     // hash is either '' (clear) or a string starting with '#'.
@@ -605,6 +662,7 @@
       timerRemaining: segs[0].duration,
       timerRunning:false,
       timerStartedAt:null,
+      createdAt: Date.now(),
       updatedAt: Date.now()
     };
   }
@@ -632,7 +690,7 @@
     if(!matchCode) return;
     state.updatedAt = Date.now();
     localState = state;
-    render(); // update this device immediately regardless of network state
+    try{ render(); }catch(e){ console.error('scoreboard: render failed', e); } // never let a display glitch block the actual save
     const myVersion = ++saveVersion;
     await attemptSave(state, myVersion, 0);
   }
@@ -811,15 +869,24 @@
         const remote = snap.val();
         if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
           localState = remote;
-          render();
+          try{ render(); }catch(e){ console.error('scoreboard: render failed', e); }
         }
       });
     }
-    tickTimer = setInterval(render, 1000);
+    scheduleAlignedTick();
+  }
+  function scheduleAlignedTick(){
+    const tick = ()=>{ try{ render(); }catch(e){ console.error('scoreboard: render failed', e); } };
+    const msIntoSecond = syncedNow() % 1000;
+    const delay = 1000 - msIntoSecond;
+    tickTimer = setTimeout(()=>{
+      tick();
+      tickTimer = setInterval(tick, 1000);
+    }, delay);
   }
   function stopLoops(){
     if(remoteListenerKey){ fbDb.ref(remoteListenerKey).off('value'); remoteListenerKey = null; }
-    if(tickTimer) clearInterval(tickTimer);
+    if(tickTimer){ clearInterval(tickTimer); clearTimeout(tickTimer); }
   }
 
   async function ensureState(){
@@ -863,7 +930,17 @@
     setTimeout(()=>document.getElementById('connectCodeInput').focus(), 50);
   }
 
-  function connectControl(code){
+  async function connectControl(code){
+    const btn = document.getElementById('connectBtn');
+    const errEl = document.getElementById('connectErr');
+    errEl.textContent = '';
+    if(btn) btn.disabled = true;
+    const got = await claimControlLock(code);
+    if(btn) btn.disabled = false;
+    if(!got){
+      errEl.textContent = '⚠️ This match is already being controlled from another device.';
+      return;
+    }
     matchCode = code;
     safeSetHash('#c-'+code);
     document.getElementById('controlConnect').classList.add('hidden');
@@ -871,9 +948,11 @@
     ensureState().then(()=>{ render(); populateSetupFields(localState); startLoops(); });
   }
 
-  document.getElementById('btnGoDisplay').addEventListener('click', ()=>{
+  document.getElementById('btnGoDisplay').addEventListener('click', async ()=>{
     const m = location.hash.match(/^#d-(\d{4})$/);
-    startDisplay(m ? m[1] : generateCode());
+    if(m){ startDisplay(m[1]); return; }
+    const code = await generateFreshCode();
+    startDisplay(code);
   });
   document.getElementById('btnGoControl').addEventListener('click', ()=>{
     const m = location.hash.match(/^#c-(\d{4})$/);
@@ -892,7 +971,13 @@
     if(e.key === 'Enter') document.getElementById('connectBtn').click();
   });
   document.getElementById('connectBack').addEventListener('click', ()=>showView('select'));
-  document.getElementById('ctrlBack').addEventListener('click', ()=>showView('select'));
+  document.getElementById('ctrlBack').addEventListener('click', ()=>{
+    stopLoops();
+    releaseControlLock();
+    matchCode = null;
+    safeSetHash('');
+    showView('select');
+  });
 
   document.getElementById('syncStatusPill').addEventListener('click', ()=>{
     if(localState) saveState(localState);
