@@ -849,6 +849,12 @@
       pill.textContent = isDone ? 'Time up' : (state.timerRunning ? 'Running' : 'Paused');
       pill.className = 'status-pill ' + (state.timerRunning && !isDone ? 'running':'paused');
       document.getElementById('ctrlStartPause').textContent = state.timerRunning ? '⏸ Pause' : '▶ Start';
+
+      const scoringLocked = seg.type === 'interval';
+      document.querySelectorAll('.round-btn[data-team]').forEach(btn=>{
+        btn.style.opacity = scoringLocked ? '0.35' : '1';
+        btn.style.cursor = scoringLocked ? 'not-allowed' : 'pointer';
+      });
     }
 
     // auto pause when segment time is up
@@ -995,6 +1001,11 @@
   document.querySelectorAll('.round-btn[data-team]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!localState) return;
+      const seg = currentSegment(localState);
+      if(seg.type === 'interval'){
+        showToast('⏸ Scoring is locked during ' + seg.label);
+        return;
+      }
       const team = btn.getAttribute('data-team');
       const delta = parseInt(btn.getAttribute('data-delta'));
       const state = localState;
