@@ -543,6 +543,11 @@
   };
   firebase.initializeApp(firebaseConfig);
   const fbDb = firebase.database();
+  let serverTimeOffset = 0;
+  fbDb.ref('.info/serverTimeOffset').on('value', (snap)=>{
+    serverTimeOffset = snap.val() || 0;
+  });
+  function syncedNow(){ return Date.now() + serverTimeOffset; }
 </script>
 <script>
 (function(){
@@ -651,7 +656,7 @@
 
   function getEffectiveRemaining(state){
     if(!state.timerRunning || !state.timerStartedAt) return state.timerRemaining;
-    const elapsed = (Date.now() - state.timerStartedAt)/1000;
+    const elapsed = (syncedNow() - state.timerStartedAt)/1000;
     return Math.max(0, state.timerRemaining - elapsed);
   }
 
@@ -927,7 +932,7 @@
         return;
       }
       state.timerRunning = true;
-      state.timerStartedAt = Date.now();
+      state.timerStartedAt = syncedNow();
     }
     await saveState(state);
   });
