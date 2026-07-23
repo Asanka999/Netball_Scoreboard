@@ -6,6 +6,8 @@
 <title>Netball Live Scoreboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root{
     --court-teal:#0b3d3a;
@@ -622,6 +624,31 @@
 <script>
 (function(){
   const STORAGE_PREFIX = 'netball_match_state_v1_';
+
+  /* =========================================================================
+     FIREBASE SETUP — REQUIRED for cross-device sync when this file is hosted
+     on GitHub Pages / any static site (not inside a Claude.ai artifact).
+     1) Go to https://console.firebase.google.com -> create a free project
+     2) Build -> Realtime Database -> Create Database -> start in TEST MODE
+     3) Project settings (gear icon) -> General -> "Your apps" -> Add app -> Web (</>)
+     4) Copy the firebaseConfig object it gives you and paste it below,
+        replacing the placeholder values.
+     ========================================================================= */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAeSXfWIvFtIWFhD7mYCkdh500a9jCzSd4",
+    authDomain: "netball-scoreboard-6f159.firebaseapp.com",
+    databaseURL: "https://netball-scoreboard-6f159-default-rtdb.firebaseio.com",
+    projectId: "netball-scoreboard-6f159",
+    storageBucket: "netball-scoreboard-6f159.firebasestorage.app",
+    messagingSenderId: "942465626565",
+    appId: "1:942465626565:web:f8bc0a4f6f972922c81bac"
+  };
+  const firebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
+  let db = null;
+  if(firebaseReady && window.firebase){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  }
   let localState = null;
   let currentView = 'select';
   let pollTimer = null;
@@ -683,10 +710,20 @@
 
   async function loadRemoteState(){
     if(!matchCode) return null;
-    try{
-      const res = await window.storage.get(storageKeyFor(matchCode), true);
-      if(res && res.value) return JSON.parse(res.value);
-    }catch(e){ /* not found yet */ }
+    if(db){
+      try{
+        const snap = await db.ref(storageKeyFor(matchCode)).get();
+        if(snap.exists()) return snap.val();
+      }catch(e){ console.error('scoreboard: firebase read failed', e); }
+      return null;
+    }
+    // fallback: Claude.ai artifact preview storage
+    if(window.storage){
+      try{
+        const res = await window.storage.get(storageKeyFor(matchCode), true);
+        if(res && res.value) return JSON.parse(res.value);
+      }catch(e){ /* not found yet */ }
+    }
     return null;
   }
 
@@ -710,8 +747,19 @@
   }
 
   async function attemptSave(state, myVersion, attempt){
+    if(!firebaseReady){
+      setSyncStatus('error');
+      showToast('⚠️ Firebase not set up yet — see comment at top of the code');
+      return;
+    }
     try{
-      await window.storage.set(storageKeyFor(matchCode), JSON.stringify(state), true);
+      if(db){
+        await db.ref(storageKeyFor(matchCode)).set(state);
+      } else if(window.storage){
+        await window.storage.set(storageKeyFor(matchCode), JSON.stringify(state), true);
+      } else {
+        throw new Error('no storage backend available');
+      }
       if(myVersion === saveVersion) setSyncStatus('ok');
     }catch(e){
       console.error('scoreboard: save failed (attempt '+attempt+')', e);
@@ -930,20 +978,35 @@
   }
 
   /* ---------- polling / ticking ---------- */
+  let fbListenerRef = null;
   function startLoops(){
     stopLoops();
-    pollTimer = setInterval(async ()=>{
-      const remote = await loadRemoteState();
-      if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
-        localState = remote;
-        render();
-      }
-    }, 1500);
+    if(db && matchCode){
+      // instant, real-time sync via Firebase — fires whenever any device writes
+      fbListenerRef = db.ref(storageKeyFor(matchCode));
+      fbListenerRef.on('value', (snap)=>{
+        const remote = snap.val();
+        if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
+          localState = remote;
+          render();
+        }
+      });
+    } else {
+      // fallback: 1.5s polling (used for the Claude.ai artifact preview storage)
+      pollTimer = setInterval(async ()=>{
+        const remote = await loadRemoteState();
+        if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
+          localState = remote;
+          render();
+        }
+      }, 1500);
+    }
     tickTimer = setInterval(render, 1000);
   }
   function stopLoops(){
     if(pollTimer) clearInterval(pollTimer);
     if(tickTimer) clearInterval(tickTimer);
+    if(fbListenerRef){ fbListenerRef.off('value'); fbListenerRef = null; }
   }
 
   async function ensureState(){
@@ -1197,6 +1260,10 @@
     populateSetupFields(fresh);
     showToast('Match reset — scores and timer cleared');
   });
+
+  if(!firebaseReady){
+    console.warn('Netball scoreboard: Firebase is not configured yet. Cross-device sync will not work until you fill in firebaseConfig near the top of the <script>.');
+  }
 
   /* ---------- auto-route if URL already has a pairing code ---------- */
   (function initRoute(){
