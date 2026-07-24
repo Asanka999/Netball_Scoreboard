@@ -151,6 +151,23 @@
   .main-timer-label.hidden{display:none;}
   .main-timer-box.timeout-mode{border-color:#e2432c; box-shadow:0 0 0 6px rgba(226,67,44,0.12), inset 0 0 30px rgba(0,0,0,0.35);}
 
+  .timeout-box{
+    width:min(420px,80%); text-align:center;
+    border:3px solid #c41e24; border-radius:16px;
+    background:#ffffff;
+    box-shadow:none;
+    padding:8px 18px; margin-top:-6px;
+  }
+  .timeout-box.hidden{display:none;}
+  .timeout-box-label{
+    font-size:14px; letter-spacing:.25em; text-transform:uppercase; font-weight:700;
+    color:#c41e24; margin-bottom:2px; animation:pulse 1s infinite;
+  }
+  .timeout-box-value{
+    font-family:'Orbitron', sans-serif; font-weight:900; line-height:1;
+    font-size:clamp(32px,6vw,56px); color:#c41e24;
+  }
+
   .mid-row{
     display:flex; align-items:center; justify-content:center; gap:26px;
     width:100%; flex-wrap:wrap;
@@ -181,9 +198,9 @@
     text-shadow:0 6px 24px rgba(0,0,0,0.35);
   }
   .seg-label-box{
-    min-width:130px; padding:12px 20px; border:2px solid var(--line); border-radius:14px;
-    font-size:15px; letter-spacing:.16em; text-transform:uppercase; color:rgba(245,241,230,0.8);
-    text-align:center; background:rgba(18,35,59,0.4); font-weight:600;
+    min-width:170px; padding:14px 26px; border:2px solid var(--line); border-radius:14px;
+    font-family:'Anton', sans-serif; font-weight:400; font-size:26px; letter-spacing:.1em; text-transform:uppercase; color:rgba(245,241,230,0.92);
+    text-align:center; background:rgba(18,35,59,0.4);
   }
 
   .bottombar{
@@ -368,9 +385,10 @@
   #displayView .timer-text-big.running,
   #displayView .timer-text-big.paused{ color:var(--pdf-navy); }
   #displayView .timer-text-big.done{ color:#d0021b; }
-  #displayView .timer-text-big.timeout{ color:#d0021b; }
-  #displayView .main-timer-label{ color:#d0021b; }
   #displayView .main-timer-box.timeout-mode{ border-color:#d0021b; }
+  #displayView .timeout-box{ border-color:#d0021b; }
+  #displayView .timeout-box-label{ color:#d0021b; }
+  #displayView .timeout-box-value{ color:#d0021b; }
 
   #displayView .period-num-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-amber); }
   #displayView .seg-label-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-blue); }
@@ -388,7 +406,9 @@
     .score-col{font-size:clamp(48px,20vw,90px); min-width:100px;}
     .period-num-box{width:52px; height:52px; font-size:22px;}
     .arrow-svg{width:34px; height:34px;}
-    .seg-label-box{font-size:12px; padding:8px 12px; min-width:100px;}
+    .seg-label-box{font-size:17px; padding:10px 16px; min-width:130px;}
+    .timeout-box{width:90%; padding:6px 12px;}
+    .timeout-box-value{font-size:clamp(24px,10vw,40px);}
     .logo-label{display:none;}
     .tourney-title{font-size:14px;}
   }
@@ -455,8 +475,11 @@
 
   <div class="scoreboard-main">
     <div class="main-timer-box" id="dispTimerBox">
-      <div class="main-timer-label hidden" id="dispTimerLabel">TECHNICAL TIMEOUT</div>
       <div class="timer-text-big paused" id="dispTimer">15:00</div>
+    </div>
+    <div class="timeout-box hidden" id="dispTimeoutBox">
+      <div class="timeout-box-label" id="dispTimeoutLabel">TECHNICAL TIMEOUT</div>
+      <div class="timeout-box-value" id="dispTimeoutValue">0:30</div>
     </div>
 
     <div class="mid-row">
@@ -953,17 +976,18 @@
       document.getElementById('dispSegLabel').textContent = seg.label.toUpperCase();
       const dt = document.getElementById('dispTimer');
       const dtBox = document.getElementById('dispTimerBox');
-      const dtLabel = document.getElementById('dispTimerLabel');
+      const toBox = document.getElementById('dispTimeoutBox');
+      const toValue = document.getElementById('dispTimeoutValue');
       const toRemaining = getEffectiveTimeoutRemaining(state);
+      // Main quarter/interval clock always stays visible.
+      dt.textContent = fmt(remaining);
+      dt.className = 'timer-text-big ' + (isDone ? 'done' : (state.timerRunning ? 'running':'paused'));
       if(state.timeoutActive){
-        dt.textContent = fmt(toRemaining);
-        dt.className = 'timer-text-big timeout';
-        dtLabel.classList.remove('hidden');
+        toValue.textContent = fmt(toRemaining);
+        toBox.classList.remove('hidden');
         dtBox.classList.add('timeout-mode');
       } else {
-        dt.textContent = fmt(remaining);
-        dt.className = 'timer-text-big ' + (isDone ? 'done' : (state.timerRunning ? 'running':'paused'));
-        dtLabel.classList.add('hidden');
+        toBox.classList.add('hidden');
         dtBox.classList.remove('timeout-mode');
       }
 
@@ -1178,10 +1202,10 @@
       const delta = parseInt(btn.getAttribute('data-delta'));
       if(team==='A') state.scoreA = Math.max(0, state.scoreA + delta);
       else state.scoreB = Math.max(0, state.scoreB + delta);
-      // After a goal, the OTHER team takes the next centre pass (standard netball rule).
-      // Only auto-flip on a genuine goal (+1), not on a correction (-1).
+      // Every goal flips the centre pass arrow to the other side — regardless of which team scored.
+      // Only flip on a genuine goal (+1), not on a correction (-1).
       if(delta > 0){
-        state.centerPassTeam = (team === 'A') ? 'B' : 'A';
+        state.centerPassTeam = (state.centerPassTeam === 'A') ? 'B' : 'A';
       }
       await saveState(state);
     });
