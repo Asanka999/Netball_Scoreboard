@@ -466,7 +466,7 @@
       <div class="tourney-title" id="dispTourneyTitle">National Netball Tournament</div>
       <div class="match-no" id="dispMatchNo"></div>
       <div class="toss-badge hidden" id="dispTossBadge"></div>
-      <div class="code-pill">PAIRING CODE <b id="dispCodeText">····</b></div>
+      <div class="code-pill" id="dispCodePill">PAIRING CODE <b id="dispCodeText">····</b></div>
     </div>
     <div class="logo-slot right">
       <div class="logo-label" style="text-align:right" id="rightOrgLabel"><b>Netball</b>Federation of Sri Lanka</div>
@@ -509,6 +509,7 @@
   <div class="bottombar">Ministry of Sports &amp; Youth Affairs — Official Digital Scoreboard &nbsp;·&nbsp; Developed by Y.M V A D Yapa</div>
   <div class="next-match-bar hidden" id="dispNextMatchBar"></div>
   <button class="fab" id="fullscreenBtn">⤢ Fullscreen</button>
+  <button class="fab" id="dispCodeToggle" style="right:170px;">🔑 Code</button>
 </div>
 
 <!-- ================= CONTROL VIEW ================= -->
@@ -794,6 +795,7 @@
       tournamentName:'National Netball Tournament', matchNumber:'', nextTeamA:'', nextTeamB:'',
       tossWinner:'', centerPassTeam:'',
       timeoutActive:false, timeoutRemaining:0, timeoutStartedAt:null, wastedTimeStartedAt:null,
+      controlConnected:false, pairingCodeVisible:true,
       leftLogoUrl:'', rightLogoUrl:'', leftOrgName:'', rightOrgName:'',
       periodMinutes:15, intervalMinutesList: intervalMinutesList, totalPeriods:4,
       segments: segs,
@@ -828,12 +830,20 @@
      AUTO-CLEANUP — pairing codes only run 0000-9999, so old / abandoned
      matches must be cleared out of Firebase periodically or the code
      space fills up and "database full" errors start happening.
-     Any match that hasn't been updated in 3 days gets deleted automatically.
+     Two TTLs:
+       - a match that was created on the Main Display but NEVER got a
+         mobile remote paired to it is almost certainly an abandoned/typo'd
+         code, so it's freed up quickly (20 minutes) to keep the limited
+         code space available.
+       - a match that DID get a control device connected is treated as a
+         real match and kept around longer (3 days) in case of a break
+         mid-tournament.
      Throttled with localStorage so it only actually hits the database
-     once every few hours per device, not on every single page load.
+     every so often per device, not on every single page load.
      --------------------------------------------------------------------- */
-  const MATCH_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-  const CLEANUP_THROTTLE_MS = 6 * 60 * 60 * 1000; // don't re-scan more than once every 6h
+  const UNPAIRED_TTL_MS = 20 * 60 * 1000; // 20 minutes — no control ever connected
+  const MATCH_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days — match was actually used
+  const CLEANUP_THROTTLE_MS = 15 * 60 * 1000; // don't re-scan more than once every 15 min
   const CLEANUP_LS_KEY = 'netball_last_cleanup_v1';
 
   async function cleanupOldMatches(){
@@ -846,13 +856,14 @@
       const snap = await db.ref().once('value');
       const all = snap.val();
       if(!all) return;
-      const cutoff = Date.now() - MATCH_TTL_MS;
+      const now = Date.now();
       const deletions = [];
       Object.keys(all).forEach(key=>{
         if(!key.startsWith(STORAGE_PREFIX)) return;
         const rec = all[key];
         const updatedAt = (rec && rec.updatedAt) ? rec.updatedAt : 0;
-        if(updatedAt < cutoff){
+        const ttl = (rec && rec.controlConnected) ? MATCH_TTL_MS : UNPAIRED_TTL_MS;
+        if(now - updatedAt > ttl){
           deletions.push(db.ref(key).remove());
         }
       });
@@ -866,6 +877,7 @@
   }
 
   let saveVersion = 0;
+  setInterval(()=>{ if(typeof cleanupOldMatches==='function') cleanupOldMatches(); }, CLEANUP_THROTTLE_MS);
 
   function setSyncStatus(status){
     const el = document.getElementById('syncStatusPill');
@@ -1021,6 +1033,7 @@
 
     if(currentView === 'display'){
       document.getElementById('dispCodeText').textContent = matchCode || '····';
+      document.getElementById('dispCodePill').classList.toggle('hidden', !state.pairingCodeVisible);
       document.getElementById('dispTourneyTitle').textContent = state.tournamentName || 'National Netball Tournament';
       document.getElementById('dispTeamA').textContent = state.teamA;
       document.getElementById('dispTeamB').textContent = state.teamB;
@@ -1099,6 +1112,7 @@
 
     if(currentView === 'control'){
       document.getElementById('ctrlCodeText').textContent = matchCode || '····';
+      document.getElementById('ctrlCodePill').classList.toggle('hidden', !state.pairingCodeVisible);
       document.getElementById('ctrlNameA').textContent = state.teamA;
       document.getElementById('ctrlNameB').textContent = state.teamB;
       document.getElementById('ctrlValA').textContent = state.scoreA;
@@ -1232,7 +1246,17 @@
     safeSetHash('#c-'+code);
     document.getElementById('controlConnect').classList.add('hidden');
     document.getElementById('controlPanel').classList.remove('hidden');
-    ensureState().then(()=>{ render(); populateSetupFields(localState); startLoops(); });
+    ensureState().then(()=>{
+      if(localState && !localState.controlConnected){
+        localState.controlConnected = true;
+        localState.pairingCodeVisible = false; // hides on BOTH the mobile and the main display, since it's synced
+        saveState(localState); // saveState() also re-renders
+      } else {
+        render();
+      }
+      populateSetupFields(localState);
+      startLoops();
+    });
   }
 
   document.getElementById('btnGoDisplay').addEventListener('click', ()=>{
@@ -1258,8 +1282,10 @@
   document.getElementById('connectBack').addEventListener('click', ()=>showView('select'));
   document.getElementById('ctrlBack').addEventListener('click', ()=>showView('select'));
 
-  document.getElementById('ctrlCodeToggle').addEventListener('click', ()=>{
-    document.getElementById('ctrlCodePill').classList.toggle('hidden');
+  document.getElementById('ctrlCodeToggle').addEventListener('click', async ()=>{
+    const state = localState; if(!state) return;
+    state.pairingCodeVisible = !state.pairingCodeVisible;
+    await saveState(state);
   });
 
   document.getElementById('syncStatusPill').addEventListener('click', ()=>{
@@ -1272,6 +1298,12 @@
       if(!document.fullscreenElement){ el.requestFullscreen && el.requestFullscreen(); }
       else{ document.exitFullscreen && document.exitFullscreen(); }
     }catch(e){}
+  });
+
+  document.getElementById('dispCodeToggle').addEventListener('click', async ()=>{
+    const state = localState; if(!state) return;
+    state.pairingCodeVisible = !state.pairingCodeVisible;
+    await saveState(state);
   });
 
   /* ---------- score buttons ---------- */
@@ -1514,6 +1546,10 @@
     fresh.colorA = state.colorA; fresh.colorB = state.colorB;
     fresh.tournamentName = state.tournamentName; fresh.matchNumber = state.matchNumber; fresh.nextTeamA = state.nextTeamA; fresh.nextTeamB = state.nextTeamB;
     fresh.periodMinutes = state.periodMinutes; fresh.intervalMinutesList = state.intervalMinutesList; fresh.totalPeriods = state.totalPeriods;
+    fresh.controlConnected = state.controlConnected;
+    fresh.pairingCodeVisible = state.pairingCodeVisible;
+    fresh.leftLogoUrl = state.leftLogoUrl; fresh.rightLogoUrl = state.rightLogoUrl;
+    fresh.leftOrgName = state.leftOrgName; fresh.rightOrgName = state.rightOrgName;
     fresh.segments = buildSegments(fresh.periodMinutes, fresh.intervalMinutesList, fresh.totalPeriods);
     fresh.timerRemaining = fresh.segments[0].duration;
     await saveState(fresh);
