@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="si">
+<html lang="si" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --court-teal:#0b3d3a;
@@ -29,6 +32,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
+  html{color-scheme:dark;}
   body{
     margin:0;
     background:var(--navy);
@@ -208,10 +212,15 @@
     position:relative; z-index:2; letter-spacing:.05em;
   }
 
-  .fab{
+  .fab-row{
     position:fixed; bottom:18px; right:18px; z-index:5;
+    display:flex; flex-wrap:wrap-reverse; gap:10px; justify-content:flex-end;
+    max-width:calc(100vw - 36px);
+  }
+  .fab{
     background:rgba(18,35,59,0.75); color:var(--chalk); border:1px solid var(--line);
     padding:10px 16px; border-radius:30px; font-size:14px; display:flex; align-items:center; gap:6px;
+    white-space:nowrap;
   }
   .fab:hover{background:rgba(232,121,46,0.25);}
 
@@ -299,6 +308,13 @@
     width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
     background:rgba(11,61,58,0.35); color:var(--chalk); font-size:16px;
   }
+  .field select{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+    background:rgba(11,61,58,0.35); color:var(--chalk); font-size:16px;
+  }
+  .field select option{ background:#12233b; color:#f5f1e6; }
+  html[data-theme="light"] .field select{ background:rgba(18,35,59,0.05); color:#12233b; border-color:rgba(18,35,59,0.18); }
+  html[data-theme="light"] .field select option{ background:#ffffff; color:#12233b; }
   .color-input{display:flex; align-items:center; gap:8px; margin-top:6px;}
   .color-input input[type=color]{
     width:36px; height:36px; border-radius:8px; border:1px solid var(--line); background:none; padding:0;
@@ -369,34 +385,179 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
-  /* ---------- DISPLAY THEME — exact palette from the reference scoreboard mockup ---------- */
-  #displayView{ background:var(--pdf-bg); }
-  #displayView .topbar{ background:#ffffff; border-bottom:2px solid var(--pdf-navy); }
-  #displayView .tourney-title{ color:var(--pdf-yellow); text-shadow:1px 1px 0 rgba(11,31,58,0.4); }
-  #displayView .match-no{ color:var(--pdf-navy); }
-  #displayView .toss-badge{ color:var(--pdf-amber); }
-  #displayView .code-pill{ color:rgba(11,31,58,0.55); }
-  #displayView .code-pill b{ color:var(--pdf-amber); }
-  #displayView .logo-label{ color:rgba(11,31,58,0.75); }
-  #displayView .logo-label b{ color:var(--pdf-navy); }
-  #displayView .logo-badge{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-navy); }
+  /* ---------- DISPLAY THEME (LIGHT) — exact palette from the reference scoreboard mockup ----------
+     Only applied when data-theme="light" (the default). When data-theme="dark" is active, this
+     block is skipped entirely and the scoreboard falls back to the dark navy/gold base styles
+     defined earlier in this stylesheet (.main-timer-box, .score-col, .team-name-col, etc.) */
+  html[data-theme="light"] #displayView{ background:var(--pdf-bg); }
+  html[data-theme="light"] #displayView .topbar{ background:#ffffff; border-bottom:2px solid var(--pdf-navy); }
+  html[data-theme="light"] #displayView .tourney-title{ color:var(--pdf-yellow); text-shadow:1px 1px 0 rgba(11,31,58,0.4); }
+  html[data-theme="light"] #displayView .match-no{ color:var(--pdf-navy); }
+  html[data-theme="light"] #displayView .toss-badge{ color:var(--pdf-amber); }
+  html[data-theme="light"] #displayView .code-pill{ color:rgba(11,31,58,0.55); }
+  html[data-theme="light"] #displayView .code-pill b{ color:var(--pdf-amber); }
+  html[data-theme="light"] #displayView .logo-label{ color:rgba(11,31,58,0.75); }
+  html[data-theme="light"] #displayView .logo-label b{ color:var(--pdf-navy); }
+  html[data-theme="light"] #displayView .logo-badge{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-navy); }
 
-  #displayView .main-timer-box{ background:#ffffff; border-color:var(--pdf-navy); box-shadow:none; }
-  #displayView .timer-text-big.running,
-  #displayView .timer-text-big.paused{ color:var(--pdf-navy); }
-  #displayView .timer-text-big.done{ color:#d0021b; }
-  #displayView .main-timer-box.timeout-mode{ border-color:#d0021b; }
-  #displayView .timeout-box{ border-color:#d0021b; }
-  #displayView .timeout-box-label{ color:#d0021b; }
-  #displayView .timeout-box-value{ color:#d0021b; }
+  html[data-theme="light"] #displayView .main-timer-box{ background:#ffffff; border-color:var(--pdf-navy); box-shadow:none; }
+  html[data-theme="light"] #displayView .timer-text-big.running,
+  html[data-theme="light"] #displayView .timer-text-big.paused{ color:var(--pdf-navy); }
+  html[data-theme="light"] #displayView .timer-text-big.done{ color:#d0021b; }
+  html[data-theme="light"] #displayView .main-timer-box.timeout-mode{ border-color:#d0021b; }
+  html[data-theme="light"] #displayView .timeout-box{ border-color:#d0021b; }
+  html[data-theme="light"] #displayView .timeout-box-label{ color:#d0021b; }
+  html[data-theme="light"] #displayView .timeout-box-value{ color:#d0021b; }
 
-  #displayView .period-num-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-amber); }
-  #displayView .seg-label-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-blue); }
-  #displayView .next-match-bar{ background:#ffffff; border-top:2px solid var(--pdf-navy); color:var(--pdf-navy); }
-  #displayView .next-match-bar b{ color:var(--pdf-red); }
-  #displayView .bottombar{ color:rgba(11,31,58,0.55); }
-  #displayView .fab{ background:#ffffff; border:2px solid var(--pdf-navy); color:var(--pdf-navy); }
-  #displayView .fab:hover{ background:rgba(11,31,58,0.06); }
+  html[data-theme="light"] #displayView .period-num-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-amber); }
+  html[data-theme="light"] #displayView .seg-label-box{ border-color:var(--pdf-navy); background:#ffffff; color:var(--pdf-blue); }
+  html[data-theme="light"] #displayView .next-match-bar{ background:#ffffff; border-top:2px solid var(--pdf-navy); color:var(--pdf-navy); }
+  html[data-theme="light"] #displayView .next-match-bar b{ color:var(--pdf-red); }
+  html[data-theme="light"] #displayView .bottombar{ color:rgba(11,31,58,0.55); }
+  html[data-theme="light"] #displayView .fab{ background:#ffffff; border:2px solid var(--pdf-navy); color:var(--pdf-navy); }
+  html[data-theme="light"] #displayView .fab:hover{ background:rgba(11,31,58,0.06); }
+
+  /* ---------- LIGHT THEME for Mode Select / Control (mobile remote) ---------- */
+  html[data-theme="light"] body{ background:#f4f1ea; color:#12233b; }
+  html[data-theme="light"] #modeSelect{
+    background:
+      radial-gradient(circle at 20% 15%, rgba(232,121,46,0.10), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(212,169,74,0.14), transparent 45%),
+      #f4f1ea;
+  }
+  html[data-theme="light"] #modeSelect h1,
+  html[data-theme="light"] .mode-card h3{ color:#12233b; }
+  html[data-theme="light"] #modeSelect p.sub,
+  html[data-theme="light"] .mode-card p,
+  html[data-theme="light"] .brand-eyebrow,
+  html[data-theme="light"] .connect-screen p{ color:rgba(18,35,59,0.6); }
+  html[data-theme="light"] .mode-card{
+    background:linear-gradient(160deg, rgba(18,35,59,0.05), rgba(18,35,59,0.015));
+    border-color:rgba(18,35,59,0.15);
+  }
+  html[data-theme="light"] #controlView{ background:#f4f1ea; }
+  html[data-theme="light"] .ctrl-header{ border-bottom-color:rgba(18,35,59,0.15); }
+  html[data-theme="light"] .card{ background:rgba(18,35,59,0.04); border-color:rgba(18,35,59,0.14); }
+  html[data-theme="light"] .card h3,
+  html[data-theme="light"] .field label{ color:rgba(18,35,59,0.6); }
+  html[data-theme="light"] .field input[type=text],
+  html[data-theme="light"] .field input[type=number],
+  html[data-theme="light"] .code-input-row input{
+    background:#ffffff; color:#12233b; border-color:rgba(18,35,59,0.2);
+  }
+  html[data-theme="light"] .btn-outline{ color:#12233b; border-color:rgba(18,35,59,0.25); }
+  html[data-theme="light"] .toggle-btn{ background:rgba(18,35,59,0.05); color:#12233b; border-color:rgba(18,35,59,0.18); }
+  html[data-theme="light"] .back-btn{ color:rgba(18,35,59,0.6); }
+  html[data-theme="light"] .back-btn:hover{ color:#12233b; background:rgba(18,35,59,0.06); }
+  html[data-theme="light"] .round-btn{ background:rgba(18,35,59,0.08); color:#12233b; }
+  html[data-theme="light"] .round-btn.plus{ background:var(--ball-orange); color:#ffffff; }
+  html[data-theme="light"] .theme-toggle-btn{ border-color:rgba(18,35,59,0.25); color:#12233b; }
+
+  /* ---------- theme toggle button (shared) ---------- */
+  .theme-toggle-btn{
+    background:none; border:1px solid var(--line); color:var(--chalk);
+    border-radius:20px; padding:6px 12px; font-size:13px; display:inline-flex; align-items:center; gap:6px;
+  }
+  .theme-toggle-btn:active{ filter:brightness(0.9); }
+
+  /* ---------- shot-type modal (GS / GA) ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:30; background:rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal-box{
+    width:min(320px,100%); background:var(--navy); border:1px solid var(--line); border-radius:16px;
+    padding:20px; text-align:center;
+  }
+  html[data-theme="light"] .modal-box{ background:#ffffff; border-color:rgba(18,35,59,0.18); }
+  .modal-box h3{
+    margin:0 0 4px; font-family:'Anton', sans-serif; font-weight:400; font-size:19px; color:var(--gold);
+  }
+  html[data-theme="light"] .modal-box h3{ color:#8a6a1f; }
+  .modal-box .sub{ font-size:13px; color:rgba(245,241,230,0.6); margin:0 0 16px; }
+  html[data-theme="light"] .modal-box .sub{ color:rgba(18,35,59,0.55); }
+  .modal-box .btn-row{ margin-top:0; }
+  .modal-cancel{ margin-top:10px; }
+
+  /* ---------- roster (team & player registration) ---------- */
+  .roster-tabs{ display:flex; gap:8px; margin-bottom:12px; }
+  .roster-add-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .roster-add-row input[type=text]{
+    flex:2; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+    background:rgba(11,61,58,0.35); color:var(--chalk); font-size:14px; min-width:0;
+  }
+  .roster-add-row input[type=number]{
+    flex:1; padding:9px 6px; border-radius:8px; border:1px solid var(--line);
+    background:rgba(11,61,58,0.35); color:var(--chalk); font-size:14px; text-align:center; min-width:0;
+  }
+  .roster-add-row select{
+    flex:1.3; padding:9px 6px; border-radius:8px; border:1px solid var(--line);
+    background:rgba(11,61,58,0.35); color:var(--chalk); font-size:13px; min-width:0;
+  }
+  .roster-add-row select option{ background:#12233b; color:#f5f1e6; }
+  html[data-theme="light"] .roster-add-row input,
+  html[data-theme="light"] .roster-add-row select{
+    background:#ffffff; color:#12233b; border-color:rgba(18,35,59,0.2);
+  }
+  html[data-theme="light"] .roster-add-row select option{ background:#ffffff; color:#12233b; }
+  .roster-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .roster-player{
+    display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
+    background:rgba(245,241,230,0.05); border:1px solid var(--line); font-size:14px;
+  }
+  html[data-theme="light"] .roster-player{ background:rgba(18,35,59,0.04); border-color:rgba(18,35,59,0.12); }
+  .roster-player .num{
+    font-family:'Orbitron', sans-serif; font-weight:700; width:26px; text-align:center; color:var(--gold); flex-shrink:0;
+  }
+  .roster-player .pname{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .roster-player .pos{
+    font-size:11px; letter-spacing:.05em; color:rgba(245,241,230,0.55); border:1px solid var(--line);
+    border-radius:6px; padding:2px 6px; flex-shrink:0;
+  }
+  html[data-theme="light"] .roster-player .pos{ color:rgba(18,35,59,0.55); }
+  .roster-player .pos-select{
+    font-size:11px; letter-spacing:.05em; color:var(--chalk); background:rgba(245,241,230,0.06);
+    border:1px solid var(--line); border-radius:6px; padding:3px 4px; flex-shrink:0; font-family:inherit;
+  }
+  .roster-player .pos-select option{ background:#12233b; color:#f5f1e6; }
+  html[data-theme="light"] .roster-player .pos-select{ color:var(--navy); background:rgba(18,35,59,0.04); border-color:rgba(18,35,59,0.12); }
+  html[data-theme="light"] .roster-player .pos-select option{ background:#ffffff; color:#12233b; }
+  .roster-player .rm{
+    background:none; color:#e2432c; font-size:16px; padding:2px 6px; flex-shrink:0; border-radius:6px;
+  }
+  .roster-player .sub-btn{
+    background:none; color:var(--ball-orange); font-size:12px; padding:4px 8px; flex-shrink:0; border-radius:6px;
+    border:1px solid var(--ball-orange); letter-spacing:.03em;
+  }
+  .roster-player .status-badge{
+    font-size:10px; letter-spacing:.05em; text-transform:uppercase; padding:2px 6px; border-radius:5px; flex-shrink:0; font-weight:600;
+  }
+  .roster-player .status-badge.active{ background:rgba(21,148,71,0.18); color:#3fd07a; }
+  .roster-player .status-badge.bench{ background:rgba(245,241,230,0.1); color:rgba(245,241,230,0.5); }
+  html[data-theme="light"] .roster-player .status-badge.bench{ background:rgba(18,35,59,0.08); color:rgba(18,35,59,0.5); }
+  .roster-empty{ font-size:13px; color:rgba(245,241,230,0.4); text-align:center; padding:8px 0; }
+  html[data-theme="light"] .roster-empty{ color:rgba(18,35,59,0.4); }
+  .sub-log-entry{
+    display:flex; flex-direction:column; gap:2px; padding:8px 10px; border-radius:10px;
+    background:rgba(245,241,230,0.05); border:1px solid var(--line); font-size:13px;
+  }
+  html[data-theme="light"] .sub-log-entry{ background:rgba(18,35,59,0.04); border-color:rgba(18,35,59,0.12); }
+  .sub-log-entry .swap{ font-weight:600; }
+  .sub-log-entry .meta{ font-size:11px; color:rgba(245,241,230,0.5); letter-spacing:.03em; }
+  html[data-theme="light"] .sub-log-entry .meta{ color:rgba(18,35,59,0.5); }
+
+  /* ---------- control panel tabs ---------- */
+  .ctrl-tabs{ display:flex; gap:8px; padding:0 16px 14px; }
+  .ctrl-tab-btn{
+    flex:1; padding:11px 8px; border-radius:12px; font-size:14px; font-weight:600; letter-spacing:.02em;
+    background:rgba(245,241,230,0.06); color:rgba(245,241,230,0.65); border:1px solid var(--line);
+  }
+  .ctrl-tab-btn.active{ background:var(--ball-orange); color:#1a1204; border-color:var(--ball-orange); }
+  html[data-theme="light"] .ctrl-tab-btn{ background:rgba(18,35,59,0.05); color:rgba(18,35,59,0.6); border-color:rgba(18,35,59,0.15); }
+  html[data-theme="light"] .ctrl-tab-btn.active{ background:var(--ball-orange); color:#fff; border-color:var(--ball-orange); }
+  .shot-tally{ font-size:12px; color:rgba(245,241,230,0.5); text-align:right; min-width:70px; flex-shrink:0; }
+  html[data-theme="light"] .shot-tally{ color:rgba(18,35,59,0.5); }
 
   @media (max-width:700px){
     .scoreboard-main{gap:14px; padding:10px 14px 20px;}
@@ -407,6 +568,8 @@
     .period-num-box{width:52px; height:52px; font-size:22px;}
     .arrow-svg{width:34px; height:34px;}
     .seg-label-box{font-size:17px; padding:10px 16px; min-width:130px;}
+    .roster-add-row{flex-wrap:wrap;}
+    .roster-add-row input[type=text]{flex:1 1 100%;}
     .timeout-box{width:90%; padding:6px 12px;}
     .timeout-box-value{font-size:clamp(24px,10vw,40px);}
     .logo-label{display:none;}
@@ -448,9 +611,25 @@
       <p>Control team names, score and the timer from courtside.</p>
     </button>
   </div>
-  <div style="margin-top:34px; font-size:12px; letter-spacing:.05em; color:rgba(245,241,230,0.35);">
+  <div style="margin-top:18px; font-size:12px; letter-spacing:.05em; color:rgba(245,241,230,0.35);">
     © <span id="creditYearSelect"></span> · Developed by Y.M V A D Yapa
   </div>
+</div>
+
+<!-- ================= DISPLAY CONNECT (enter/create code) ================= -->
+<div id="displayConnect" class="connect-screen hidden">
+  <div class="icon">🖥️</div>
+  <h2>Connect Main Display</h2>
+  <p>Already created a match code on your phone? Enter it below so this screen shows the same match.</p>
+  <div class="code-input-row">
+    <input type="tel" inputmode="numeric" maxlength="4" id="displayCodeInput" placeholder="0000">
+  </div>
+  <div class="connect-err" id="displayConnectErr"></div>
+  <button class="btn btn-primary connect-btn" id="displayConnectBtn">Connect</button>
+  <div style="font-size:12px; letter-spacing:.08em; color:rgba(245,241,230,0.4); margin-top:14px;">— OR —</div>
+  <p style="max-width:280px;">Starting fresh from this screen instead? Generate a new code here, then enter it on the Mobile Remote.</p>
+  <button class="btn btn-outline connect-btn" id="displayCreateBtn">✚ Create New Match Code</button>
+  <button class="back-btn" id="displayConnectBack">← Menu</button>
 </div>
 
 <!-- ================= DISPLAY VIEW ================= -->
@@ -508,8 +687,19 @@
 
   <div class="bottombar">Ministry of Sports &amp; Youth Affairs — Official Digital Scoreboard &nbsp;·&nbsp; Developed by Y.M V A D Yapa</div>
   <div class="next-match-bar hidden" id="dispNextMatchBar"></div>
-  <button class="fab" id="fullscreenBtn">⤢ Fullscreen</button>
-  <button class="fab" id="dispCodeToggle" style="right:170px;">🔑 Code</button>
+  <div class="fab-row">
+    <button class="fab" id="addHomeBtn">📲 Add to Home</button>
+    <button class="fab" id="dispCodeToggle">🔑 Code</button>
+    <button class="fab" id="fullscreenBtn">⤢ Fullscreen</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="addHomeModal">
+  <div class="modal-box">
+    <h3 id="addHomeTitle">Add to Home Screen</h3>
+    <p class="sub" id="addHomeSub" style="text-align:left; line-height:1.5;"></p>
+    <button class="btn btn-primary" id="addHomeCloseBtn" style="width:100%;">Got it</button>
+  </div>
 </div>
 
 <!-- ================= CONTROL VIEW ================= -->
@@ -524,6 +714,9 @@
     </div>
     <div class="connect-err" id="connectErr"></div>
     <button class="btn btn-primary connect-btn" id="connectBtn">Connect</button>
+    <div style="font-size:12px; letter-spacing:.08em; color:rgba(245,241,230,0.4); margin-top:14px;">— OR —</div>
+    <p style="max-width:280px;">Starting a brand new match from this phone? Generate a fresh code here, then enter it on the Main Display (and any other phones).</p>
+    <button class="btn btn-outline connect-btn" id="createMatchBtn">✚ Create New Match Code</button>
     <button class="back-btn" id="connectBack">← Menu</button>
   </div>
 
@@ -539,6 +732,13 @@
   <div class="sync-row">
     <span class="sync-pill ok" id="syncStatusPill">● Synced</span>
   </div>
+
+  <div class="ctrl-tabs">
+    <button class="ctrl-tab-btn active" id="ctrlTabMatchBtn">🏐 Match Control</button>
+    <button class="ctrl-tab-btn" id="ctrlTabTeamBtn">👥 Team &amp; Players</button>
+  </div>
+
+  <div id="tabMatchControl">
 
   <div class="card">
     <h3>Timer</h3>
@@ -568,6 +768,7 @@
     <div class="score-row">
       <div class="team-dot" id="ctrlDotA" style="background:#c41e24;"></div>
       <div class="name" id="ctrlNameA">TEAM A</div>
+      <div class="shot-tally" id="ctrlShotsA">GS 0 · GA 0</div>
       <button class="round-btn minus" data-team="A" data-delta="-1">−</button>
       <div class="val" id="ctrlValA">0</div>
       <button class="round-btn plus" data-team="A" data-delta="1">+</button>
@@ -575,6 +776,7 @@
     <div class="score-row">
       <div class="team-dot" id="ctrlDotB" style="background:#159447;"></div>
       <div class="name" id="ctrlNameB">TEAM B</div>
+      <div class="shot-tally" id="ctrlShotsB">GS 0 · GA 0</div>
       <button class="round-btn minus" data-team="B" data-delta="-1">−</button>
       <div class="val" id="ctrlValB">0</div>
       <button class="round-btn plus" data-team="B" data-delta="1">+</button>
@@ -647,16 +849,6 @@
 
   <div class="card">
     <h3>Match Setup</h3>
-    <div class="field">
-      <label>Team A name</label>
-      <input type="text" id="setupNameA" maxlength="30" placeholder="Team A">
-      <div class="color-input"><input type="color" id="setupColorA" value="#c41e24"><span style="font-size:13px; color:rgba(245,241,230,0.55);">Team A colour</span></div>
-    </div>
-    <div class="field">
-      <label>Team B name</label>
-      <input type="text" id="setupNameB" maxlength="30" placeholder="Team B">
-      <div class="color-input"><input type="color" id="setupColorB" value="#159447"><span style="font-size:13px; color:rgba(245,241,230,0.55);">Team B colour</span></div>
-    </div>
     <div class="field-row">
       <div class="field">
         <label>Quarter length (min)</label>
@@ -676,8 +868,8 @@
 
   <div class="card">
     <h3>Scorecard</h3>
-    <p style="margin:0 0 12px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Generate a shareable result card with the final score, team colours and match details — handy for posting on social media once the match ends.</p>
-    <button class="btn btn-primary" id="ctrlGenScorecard">🧾 Generate &amp; Download Scorecard</button>
+    <p style="margin:0 0 12px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Generate a shareable PDF scorecard with the final score, shot-by-shot timing and player replace log — handy to save or print once the match ends.</p>
+    <button class="btn btn-primary" id="ctrlGenScorecard">🧾 Generate &amp; Download PDF Scorecard</button>
   </div>
 
   <div class="card">
@@ -688,8 +880,133 @@
   <div style="text-align:center; padding:14px 0 4px; font-size:12px; color:rgba(245,241,230,0.35); letter-spacing:.05em;">
     © <span id="creditYearControl"></span> · Developed by Y.M V A D Yapa
   </div>
+
+  </div><!-- /tabMatchControl -->
+
+  <div id="tabTeamPlayers" class="hidden">
+
+  <div class="card">
+    <h3>Team Names &amp; Colours</h3>
+    <div class="field">
+      <label>Team A name</label>
+      <input type="text" id="setupNameA" maxlength="30" placeholder="Team A">
+      <div class="color-input"><input type="color" id="setupColorA" value="#c41e24"><span style="font-size:13px; color:rgba(245,241,230,0.55);">Team A colour</span></div>
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Team B name</label>
+      <input type="text" id="setupNameB" maxlength="30" placeholder="Team B">
+      <div class="color-input"><input type="color" id="setupColorB" value="#159447"><span style="font-size:13px; color:rgba(245,241,230,0.55);">Team B colour</span></div>
+    </div>
+    <button class="btn btn-primary" id="ctrlSaveTeamNames" style="margin-top:14px;">💾 Save Team Names</button>
+  </div>
+
+  <div class="card">
+    <h3>Import from Excel</h3>
+    <p style="margin:0 0 12px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Upload a .xlsx / .csv file containing player squads. Columns: <b>Team</b> (the team's name), <b>Number</b>, <b>Name</b>, <b>Position</b>. First row is treated as a header and skipped. After reading the file, choose which team is <b>Team A</b> and which is <b>Team B</b> from the dropdowns, then tick the first 7 (starting line-up) for each team — everyone else goes to the bench automatically. You can also tap a player's "On Court / Bench" badge afterwards to change it.</p>
+    <input type="file" id="rosterExcelFile" accept=".xlsx,.xls,.csv" style="width:100%; margin-bottom:10px;">
+    <button class="btn btn-outline" id="rosterExcelReadBtn">📄 Read File</button>
+    <div id="rosterExcelStatus" style="margin-top:8px; font-size:13px; color:rgba(245,241,230,0.6);"></div>
+
+    <div id="rosterExcelTeamPick" class="hidden" style="margin-top:16px;">
+      <div class="field">
+        <label>Which team in the file is Team A?</label>
+        <select id="rosterExcelTeamASelect"></select>
+      </div>
+      <div class="field">
+        <label>Which team in the file is Team B?</label>
+        <select id="rosterExcelTeamBSelect"></select>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin:2px 0 14px; color:rgba(245,241,230,0.7);">
+        <input type="checkbox" id="rosterExcelReplaceChk" checked style="width:auto;">
+        Replace existing roster for these teams (uncheck to add on top of what's already registered)
+      </label>
+
+      <div style="margin-bottom:6px; font-size:13px; font-weight:600; color:var(--gold);">Team A starting 7 — <span id="rosterExcelACountLabel">0 / 7</span> on court</div>
+      <div class="roster-list" id="rosterExcelPreviewA"></div>
+
+      <div style="margin:16px 0 6px; font-size:13px; font-weight:600; color:var(--gold);">Team B starting 7 — <span id="rosterExcelBCountLabel">0 / 7</span> on court</div>
+      <div class="roster-list" id="rosterExcelPreviewB"></div>
+
+      <button class="btn btn-primary" id="rosterExcelConfirmBtn" style="margin-top:14px;">⬆ Import Selected Players</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Team &amp; Player Registration</h3>
+    <div class="roster-tabs">
+      <button class="toggle-btn active" id="rosterTabA">Team A</button>
+      <button class="toggle-btn" id="rosterTabB">Team B</button>
+    </div>
+    <div class="roster-add-row">
+      <input type="number" id="rosterNumInput" placeholder="#" min="1" max="99">
+      <input type="text" id="rosterNameInput" placeholder="Player name" maxlength="30">
+      <select id="rosterPosInput">
+        <option value="GS">GS</option>
+        <option value="GA">GA</option>
+        <option value="WA">WA</option>
+        <option value="C">C</option>
+        <option value="WD">WD</option>
+        <option value="GD">GD</option>
+        <option value="GK">GK</option>
+      </select>
+    </div>
+    <div class="field" style="margin:0 0 10px;">
+      <label>Squad status</label>
+      <div class="toggle-row">
+        <button class="toggle-btn active" id="rosterStatusActiveBtn" data-status="active">On Court</button>
+        <button class="toggle-btn" id="rosterStatusBenchBtn" data-status="bench">Bench</button>
+      </div>
+    </div>
+    <button class="btn btn-outline" id="rosterAddBtn" style="margin-bottom:12px;">+ Add Player</button>
+    <div class="roster-list" id="rosterList"></div>
+  </div>
+
+  <div class="card">
+    <h3>Player Replace Log</h3>
+    <p style="margin:0 0 10px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Every substitution below is timestamped with the quarter and elapsed match time it happened, and is included in the PDF scorecard.</p>
+    <div class="roster-list" id="subLogList"></div>
+  </div>
+
+  </div><!-- /tabTeamPlayers -->
+
+  <div style="text-align:center; padding:14px 0 4px; font-size:12px; color:rgba(245,241,230,0.35); letter-spacing:.05em;">
+    © <span id="creditYearControl2"></span> · Developed by Y.M V A D Yapa
+  </div>
   </div><!-- /controlPanel -->
 </div><!-- /controlView -->
+
+<div class="modal-overlay hidden" id="shotTypeModal">
+  <div class="modal-box">
+    <h3 id="shotModalTeamName">Who scored?</h3>
+    <p class="sub">Pick the shooting position for this goal</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="shotBtnGS">GS<br><span style="font-size:11px; font-weight:400;">Goal Shooter</span></button>
+      <button class="btn btn-primary" id="shotBtnGA">GA<br><span style="font-size:11px; font-weight:400;">Goal Attack</span></button>
+    </div>
+    <button class="btn btn-outline modal-cancel" id="shotBtnCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="subModal">
+  <div class="modal-box">
+    <h3 id="subModalTitle">Replace Player</h3>
+    <p class="sub" id="subModalSub">Choose who is coming on for this player</p>
+    <div class="field" style="text-align:left;">
+      <label>Coming on</label>
+      <select id="subInSelect"></select>
+    </div>
+    <div class="field" id="subNewPlayerFields" style="text-align:left; display:none;">
+      <label>New player number</label>
+      <input type="number" id="subNewNumInput" placeholder="#" min="1" max="99">
+      <label style="margin-top:8px;">New player name</label>
+      <input type="text" id="subNewNameInput" placeholder="Player name" maxlength="30">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="subConfirmBtn">Confirm Replace</button>
+    </div>
+    <button class="btn btn-outline modal-cancel" id="subCancelBtn">Cancel</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -738,7 +1055,7 @@
   // Developer credit — fill in the current year wherever the © line appears.
   (function stampCreditYear(){
     const y = new Date().getFullYear();
-    ['creditYearSelect','creditYearControl'].forEach(id=>{
+    ['creditYearSelect','creditYearControl','creditYearControl2'].forEach(id=>{
       const el = document.getElementById(id);
       if(el) el.textContent = y;
     });
@@ -796,6 +1113,9 @@
       tossWinner:'', centerPassTeam:'',
       timeoutActive:false, timeoutRemaining:0, timeoutStartedAt:null, wastedTimeStartedAt:null,
       controlConnected:false, pairingCodeVisible:true,
+      shotsA:{gs:0, ga:0}, shotsB:{gs:0, ga:0},
+      rosterA:[], rosterB:[],
+      shotLog:[], subLog:[],
       leftLogoUrl:'', rightLogoUrl:'', leftOrgName:'', rightOrgName:'',
       periodMinutes:15, intervalMinutesList: intervalMinutesList, totalPeriods:4,
       segments: segs,
@@ -877,6 +1197,11 @@
   }
 
   let saveVersion = 0;
+  // Logos are base64 images; re-sending them on every score/timer/roster update
+  // (as part of a full state overwrite) was the main cause of a multi-second sync
+  // lag, especially on mobile data. These track what's already on the server so
+  // routine saves can skip re-uploading unchanged logos.
+  let lastSyncedLeftLogo = undefined, lastSyncedRightLogo = undefined;
   setInterval(()=>{ if(typeof cleanupOldMatches==='function') cleanupOldMatches(); }, CLEANUP_THROTTLE_MS);
 
   function setSyncStatus(status){
@@ -904,7 +1229,17 @@
     }
     try{
       if(db){
-        await db.ref(storageKeyFor(matchCode)).set(state);
+        const payload = Object.assign({}, state);
+        const logosChanged = state.leftLogoUrl !== lastSyncedLeftLogo || state.rightLogoUrl !== lastSyncedRightLogo;
+        if(!logosChanged){
+          delete payload.leftLogoUrl;
+          delete payload.rightLogoUrl;
+        }
+        await db.ref(storageKeyFor(matchCode)).update(payload);
+        if(logosChanged){
+          lastSyncedLeftLogo = state.leftLogoUrl;
+          lastSyncedRightLogo = state.rightLogoUrl;
+        }
       } else if(window.storage){
         await window.storage.set(storageKeyFor(matchCode), JSON.stringify(state), true);
       } else {
@@ -928,6 +1263,23 @@
     if(!state.timerRunning || !state.timerStartedAt) return state.timerRemaining;
     const elapsed = (nowMs() - state.timerStartedAt)/1000;
     return Math.max(0, state.timerRemaining - elapsed);
+  }
+
+  // Elapsed match time — counted up from kickoff (Quarter 1, 00:00), adding up
+  // each finished quarter's play time plus how far into the current quarter we
+  // are. Intervals/halftime aren't play time so they're skipped. Used to stamp
+  // goals and player replacements with "match time" instead of the countdown.
+  function elapsedMatchTime(state){
+    let elapsed = 0;
+    for(let i=0;i<state.segIndex && i<state.segments.length;i++){
+      if(state.segments[i].type === 'period') elapsed += state.segments[i].duration;
+    }
+    const seg = currentSegment(state);
+    if(seg && seg.type === 'period'){
+      const remaining = getEffectiveRemaining(state);
+      elapsed += Math.max(0, seg.duration - remaining);
+    }
+    return elapsed;
   }
 
   function getEffectiveTimeoutRemaining(state){
@@ -1023,6 +1375,118 @@
     if(rightPrev && pendingRightLogo===null) rightPrev.src = state.rightLogoUrl || DEFAULT_RIGHT_LOGO;
   }
 
+  /* ---------- theme: app is dark-only now, no toggle ---------- */
+
+  /* ---------- team & player registration (roster) ---------- */
+  let rosterActiveTeam = 'A';
+  let lastRosterRenderKey = null;
+  function renderRoster(state){
+    const listEl = document.getElementById('rosterList');
+    if(!listEl) return;
+    document.getElementById('rosterTabA').classList.toggle('active', rosterActiveTeam==='A');
+    document.getElementById('rosterTabB').classList.toggle('active', rosterActiveTeam==='B');
+    const roster = (rosterActiveTeam==='A' ? state.rosterA : state.rosterB) || [];
+
+    // The page re-renders every 250ms to keep the clock live, but rebuilding this
+    // list every time would blow away any dropdown / input the user has open mid-tap.
+    // Only rebuild when the actual roster contents changed.
+    const renderKey = rosterActiveTeam + '|' + JSON.stringify(roster);
+    if(renderKey === lastRosterRenderKey) return;
+    lastRosterRenderKey = renderKey;
+
+    listEl.innerHTML = '';
+    if(roster.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'roster-empty';
+      empty.textContent = 'No players registered yet for ' + (rosterActiveTeam==='A' ? state.teamA : state.teamB) + '.';
+      listEl.appendChild(empty);
+      return;
+    }
+    const POSITIONS = ['GS','GA','WA','C','WD','GD','GK'];
+    roster.forEach(p=>{
+      const status = p.status === 'bench' ? 'bench' : 'active';
+      const row = document.createElement('div');
+      row.className = 'roster-player';
+      const posField = status==='active'
+        ? '<select class="pos-select" data-id="'+p.id+'" title="Change this player\'s on-court position">'
+            + POSITIONS.map(pos=>'<option value="'+pos+'"'+(p.position===pos?' selected':'')+'>'+pos+'</option>').join('')
+          + '</select>'
+        : '<div class="pos">'+escapeHtml(p.position||'')+'</div>';
+      row.innerHTML =
+        '<div class="num">'+escapeHtml(String(p.number!=null && p.number!=='' ? p.number : '—'))+'</div>'+
+        '<div class="pname">'+escapeHtml(p.name||'Unnamed')+'</div>'+
+        posField+
+        '<button class="status-badge '+status+'" data-id="'+p.id+'" title="Tap to switch On Court / Bench">'+(status==='bench'?'Bench':'On Court')+'</button>'+
+        (status==='active' ? '<button class="sub-btn" data-id="'+p.id+'">⇄ Replace</button>' : '')+
+        '<button class="rm" data-id="'+p.id+'">✕</button>';
+      listEl.appendChild(row);
+    });
+    listEl.querySelectorAll('.pos-select').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        const state = localState; if(!state) return;
+        const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
+        const player = (state[key]||[]).find(p=>p.id===sel.getAttribute('data-id'));
+        if(!player) return;
+        player.position = sel.value;
+        await saveState(state);
+        showToast(player.name + ' moved to ' + sel.value);
+      });
+    });
+    listEl.querySelectorAll('.status-badge').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const state = localState; if(!state) return;
+        const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
+        const player = (state[key]||[]).find(p=>p.id===btn.getAttribute('data-id'));
+        if(!player) return;
+        player.status = (player.status==='bench') ? 'active' : 'bench';
+        await saveState(state);
+        showToast(player.name + ' set to ' + (player.status==='bench' ? 'Bench' : 'On Court'));
+      });
+    });
+    listEl.querySelectorAll('.rm').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const state = localState; if(!state) return;
+        const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
+        state[key] = (state[key]||[]).filter(p=>p.id !== btn.getAttribute('data-id'));
+        await saveState(state);
+        showToast('Player removed');
+      });
+    });
+    listEl.querySelectorAll('.sub-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const state = localState; if(!state) return;
+        openSubModal(rosterActiveTeam, btn.getAttribute('data-id'));
+      });
+    });
+  }
+
+  let lastSubLogRenderKey = null;
+  function renderSubLog(state){
+    const listEl = document.getElementById('subLogList');
+    if(!listEl) return;
+    const log = state.subLog || [];
+    const renderKey = JSON.stringify(log);
+    if(renderKey === lastSubLogRenderKey) return;
+    lastSubLogRenderKey = renderKey;
+    listEl.innerHTML = '';
+    if(log.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'roster-empty';
+      empty.textContent = 'No player replacements recorded yet.';
+      listEl.appendChild(empty);
+      return;
+    }
+    log.slice().reverse().forEach(entry=>{
+      const row = document.createElement('div');
+      row.className = 'sub-log-entry';
+      const teamName = entry.team==='A' ? state.teamA : state.teamB;
+      row.innerHTML =
+        '<div class="swap">'+escapeHtml(teamName)+': '+escapeHtml(entry.outName)+' (#'+escapeHtml(String(entry.outNumber||'—'))+') → '+escapeHtml(entry.inName)+' (#'+escapeHtml(String(entry.inNumber||'—'))+')</div>'+
+        '<div class="meta">'+escapeHtml(entry.segLabel)+' · '+escapeHtml(entry.timeStr)+' elapsed · '+escapeHtml(entry.position||'')+'</div>';
+      listEl.appendChild(row);
+    });
+  }
+
   /* ---------- render ---------- */
   function render(){
     if(!localState) return;
@@ -1067,7 +1531,9 @@
       // for as long as the match clock still hasn't been resumed.
       const wastedBox = document.getElementById('dispWastedBox');
       if(!state.timeoutActive && !state.timerRunning && state.wastedTimeStartedAt){
-        const wastedElapsed = (nowMs() - state.wastedTimeStartedAt)/1000;
+        // starts counting up from 0:30 (not 0:00) once the technical timeout ends,
+        // since the match is already considered "behind schedule" by the timeout length
+        const wastedElapsed = (nowMs() - state.wastedTimeStartedAt)/1000 + 30;
         document.getElementById('dispWastedValue').textContent = fmt(wastedElapsed);
         wastedBox.classList.remove('hidden');
       } else {
@@ -1117,6 +1583,9 @@
       document.getElementById('ctrlNameB').textContent = state.teamB;
       document.getElementById('ctrlValA').textContent = state.scoreA;
       document.getElementById('ctrlValB').textContent = state.scoreB;
+      const shA = state.shotsA || {gs:0,ga:0}, shB = state.shotsB || {gs:0,ga:0};
+      document.getElementById('ctrlShotsA').textContent = 'GS ' + (shA.gs||0) + ' · GA ' + (shA.ga||0);
+      document.getElementById('ctrlShotsB').textContent = 'GS ' + (shB.gs||0) + ' · GA ' + (shB.ga||0);
       document.getElementById('ctrlDotA').style.background = state.colorA;
       document.getElementById('ctrlDotB').style.background = state.colorB;
       document.getElementById('ctrlSegLabel').textContent = seg.label.toUpperCase();
@@ -1125,6 +1594,9 @@
       pill.textContent = isDone ? 'Time up' : (state.timerRunning ? 'Running' : 'Paused');
       pill.className = 'status-pill ' + (state.timerRunning && !isDone ? 'running':'paused');
       document.getElementById('ctrlStartPause').textContent = state.timerRunning ? '⏸ Pause' : '▶ Start';
+
+      renderRoster(state);
+      renderSubLog(state);
 
       document.getElementById('tossBtnA').classList.toggle('active', state.tossWinner === 'A');
       document.getElementById('tossBtnB').classList.toggle('active', state.tossWinner === 'B');
@@ -1177,6 +1649,8 @@
         const remote = snap.val();
         if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
           localState = remote;
+          lastSyncedLeftLogo = localState.leftLogoUrl;
+          lastSyncedRightLogo = localState.rightLogoUrl;
           render();
         }
       });
@@ -1186,9 +1660,11 @@
         const remote = await loadRemoteState();
         if(remote && (!localState || remote.updatedAt !== localState.updatedAt)){
           localState = remote;
+          lastSyncedLeftLogo = localState.leftLogoUrl;
+          lastSyncedRightLogo = localState.rightLogoUrl;
           render();
         }
-      }, 1500);
+      }, 900);
     }
     tickTimer = setInterval(render, 250);
   }
@@ -1206,21 +1682,34 @@
     } else {
       localState = remote;
     }
+    lastSyncedLeftLogo = localState.leftLogoUrl;
+    lastSyncedRightLogo = localState.rightLogoUrl;
   }
 
   /* ---------- view switching ---------- */
   function showView(view){
     currentView = view;
     document.getElementById('modeSelect').classList.toggle('hidden', view!=='select');
+    document.getElementById('displayConnect').classList.toggle('hidden', view!=='displayConnect');
     document.getElementById('displayView').classList.toggle('hidden', view!=='display');
     document.getElementById('controlView').classList.toggle('hidden', view!=='control');
     const courtBg = document.getElementById('courtBg');
-    if(courtBg) courtBg.style.color = (view==='display') ? '#0b1f3a' : '#f5f1e6';
+    if(courtBg) courtBg.style.color = '#f5f1e6';
     if(view==='select'){
       stopLoops();
       matchCode = null;
       safeSetHash('');
     }
+  }
+
+  function openDisplayConnect(){
+    currentView = 'displayConnect';
+    document.getElementById('modeSelect').classList.add('hidden');
+    document.getElementById('displayConnect').classList.remove('hidden');
+    document.getElementById('displayView').classList.add('hidden');
+    document.getElementById('displayConnectErr').textContent = '';
+    document.getElementById('displayCodeInput').value = '';
+    setTimeout(()=>document.getElementById('displayCodeInput').focus(), 50);
   }
 
   function startDisplay(code){
@@ -1241,7 +1730,7 @@
     setTimeout(()=>document.getElementById('connectCodeInput').focus(), 50);
   }
 
-  function connectControl(code){
+  function connectControl(code, isCreator){
     matchCode = code;
     safeSetHash('#c-'+code);
     document.getElementById('controlConnect').classList.add('hidden');
@@ -1249,7 +1738,11 @@
     ensureState().then(()=>{
       if(localState && !localState.controlConnected){
         localState.controlConnected = true;
-        localState.pairingCodeVisible = false; // hides on BOTH the mobile and the main display, since it's synced
+        // If this phone just generated the code itself, keep it visible so it can
+        // be read out / shown to the Main Display and any other phones to pair.
+        // If instead this phone is joining a code that a display already created,
+        // hide the code (its job — pairing — is done).
+        localState.pairingCodeVisible = !!isCreator;
         saveState(localState); // saveState() also re-renders
       } else {
         render();
@@ -1261,8 +1754,24 @@
 
   document.getElementById('btnGoDisplay').addEventListener('click', ()=>{
     const m = location.hash.match(/^#d-(\d{4})$/);
-    startDisplay(m ? m[1] : generateCode());
+    if(m){ startDisplay(m[1]); }
+    else { openDisplayConnect(); }
   });
+  document.getElementById('displayConnectBtn').addEventListener('click', ()=>{
+    const val = document.getElementById('displayCodeInput').value.trim();
+    if(!/^\d{4}$/.test(val)){
+      document.getElementById('displayConnectErr').textContent = 'Enter the 4-digit code shown on the Mobile Remote';
+      return;
+    }
+    startDisplay(val);
+  });
+  document.getElementById('displayCodeInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') document.getElementById('displayConnectBtn').click();
+  });
+  document.getElementById('displayCreateBtn').addEventListener('click', ()=>{
+    startDisplay(generateCode());
+  });
+  document.getElementById('displayConnectBack').addEventListener('click', ()=>showView('select'));
   document.getElementById('btnGoControl').addEventListener('click', ()=>{
     const m = location.hash.match(/^#c-(\d{4})$/);
     if(m){ openControlConnect(); connectControl(m[1]); }
@@ -1306,7 +1815,382 @@
     await saveState(state);
   });
 
+  /* ---------- Add to Home Screen (main display) ---------- */
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+  document.getElementById('addHomeBtn').addEventListener('click', async ()=>{
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      try{ await deferredInstallPrompt.userChoice; }catch(e){}
+      deferredInstallPrompt = null;
+      return;
+    }
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+    let msg;
+    if(isIOS){
+      msg = 'Tap the <b>Share</b> icon (square with an arrow pointing up) in Safari\'s toolbar, then scroll down and tap <b>"Add to Home Screen"</b>, then tap <b>Add</b>.';
+    } else if(isAndroid){
+      msg = 'Tap the <b>⋮ menu</b> (three dots, top right of Chrome), then tap <b>"Add to Home screen"</b> or <b>"Install app"</b>, then confirm.';
+    } else {
+      msg = 'Open this page in your phone\'s browser, then use the browser menu and look for <b>"Add to Home Screen"</b> or <b>"Install"</b>. On iPhone this is under the Share icon in Safari; on Android it\'s under the ⋮ menu in Chrome.';
+    }
+    document.getElementById('addHomeSub').innerHTML = msg;
+    document.getElementById('addHomeModal').classList.remove('hidden');
+  });
+  document.getElementById('addHomeCloseBtn').addEventListener('click', ()=>{
+    document.getElementById('addHomeModal').classList.add('hidden');
+  });
+
+  /* ---------- create a brand-new match code from the mobile remote ---------- */
+  document.getElementById('createMatchBtn').addEventListener('click', ()=>{
+    const code = generateCode();
+    connectControl(code, true);
+    showToast('Match created — code ' + code + '. Enter it on the Main Display.');
+  });
+
+  /* ---------- team & player registration (roster) ---------- */
+  document.getElementById('rosterTabA').addEventListener('click', ()=>{ rosterActiveTeam='A'; if(localState) renderRoster(localState); });
+  document.getElementById('rosterTabB').addEventListener('click', ()=>{ rosterActiveTeam='B'; if(localState) renderRoster(localState); });
+
+  let rosterAddStatus = 'active';
+  document.getElementById('rosterStatusActiveBtn').addEventListener('click', ()=>{
+    rosterAddStatus = 'active';
+    document.getElementById('rosterStatusActiveBtn').classList.add('active');
+    document.getElementById('rosterStatusBenchBtn').classList.remove('active');
+  });
+  document.getElementById('rosterStatusBenchBtn').addEventListener('click', ()=>{
+    rosterAddStatus = 'bench';
+    document.getElementById('rosterStatusBenchBtn').classList.add('active');
+    document.getElementById('rosterStatusActiveBtn').classList.remove('active');
+  });
+
+  document.getElementById('rosterAddBtn').addEventListener('click', async ()=>{
+    const state = localState; if(!state) return;
+    const numEl = document.getElementById('rosterNumInput');
+    const nameEl = document.getElementById('rosterNameInput');
+    const posEl = document.getElementById('rosterPosInput');
+    const name = nameEl.value.trim();
+    if(!name){ showToast('Enter a player name first'); return; }
+    const player = { id: 'p'+Date.now()+Math.floor(Math.random()*1000), number: numEl.value.trim(), name: name, position: posEl.value, status: rosterAddStatus };
+    const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
+    if(!Array.isArray(state[key])) state[key] = [];
+    state[key].push(player);
+    numEl.value = ''; nameEl.value = ''; posEl.value = 'GS';
+    await saveState(state);
+    showToast('Player added: ' + name);
+  });
+
+  /* ---------- Excel import for teams & players ---------- */
+  let excelTeamsData = null; // { [lowerKey]: { label: 'Original Team Name', players:[{number,name,position}] } }
+
+  function excelRowsToTeams(rows){
+    const teams = {};
+    let skipped = 0;
+    rows.forEach((row, idx)=>{
+      if(idx===0) return; // header row
+      const teamRaw = String(row[0]||'').trim();
+      const number = String(row[1]||'').trim();
+      const name = String(row[2]||'').trim();
+      const position = String(row[3]||'').trim().toUpperCase() || 'GS';
+      if(!teamRaw || !name){ skipped++; return; }
+      const key = teamRaw.toLowerCase();
+      if(!teams[key]) teams[key] = { label: teamRaw, players: [] };
+      teams[key].players.push({ number: number, name: name, position: position });
+    });
+    return { teams, skipped };
+  }
+
+  document.getElementById('rosterExcelReadBtn').addEventListener('click', async ()=>{
+    const state = localState; if(!state){ showToast('Connect to a match first'); return; }
+    const fileInput = document.getElementById('rosterExcelFile');
+    const statusEl = document.getElementById('rosterExcelStatus');
+    const file = fileInput.files && fileInput.files[0];
+    if(!file){ showToast('Choose an Excel or CSV file first'); return; }
+    if(typeof XLSX === 'undefined'){ showToast('Excel import library failed to load'); return; }
+    try{
+      statusEl.textContent = 'Reading file…';
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+      const { teams, skipped } = excelRowsToTeams(rows);
+      const keys = Object.keys(teams);
+      if(keys.length===0){
+        statusEl.textContent = 'No valid rows found — check the file format.';
+        showToast('No teams found in file');
+        document.getElementById('rosterExcelTeamPick').classList.add('hidden');
+        return;
+      }
+      excelTeamsData = teams;
+      const selA = document.getElementById('rosterExcelTeamASelect');
+      const selB = document.getElementById('rosterExcelTeamBSelect');
+      selA.innerHTML = ''; selB.innerHTML = '';
+      keys.forEach(k=>{
+        const label = teams[k].label + ' (' + teams[k].players.length + ' players)';
+        const optA = document.createElement('option'); optA.value = k; optA.textContent = label; selA.appendChild(optA);
+        const optB = document.createElement('option'); optB.value = k; optB.textContent = label; selB.appendChild(optB);
+      });
+      selA.value = keys[0];
+      selB.value = keys.length>1 ? keys[1] : keys[0];
+      document.getElementById('rosterExcelTeamPick').classList.remove('hidden');
+      statusEl.textContent = 'Found ' + keys.length + ' team(s) in the file' + (skipped ? ' — skipped '+skipped+' row(s)' : '') + '. Pick Team A / Team B below, then tick each team\'s starting 7.';
+      renderExcelPreview();
+    }catch(e){
+      console.error('excel read failed', e);
+      statusEl.textContent = 'Read failed — check the file format.';
+      showToast('Excel read failed');
+    }
+  });
+
+  function updateExcelCount(containerId, countLabelId){
+    const container = document.getElementById(containerId);
+    const checkedCount = container.querySelectorAll('.excel-onCourt-chk:checked').length;
+    document.getElementById(countLabelId).textContent = checkedCount + ' / 7';
+  }
+
+  function buildExcelPreviewList(containerId, countLabelId, teamKey){
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if(!excelTeamsData || !teamKey || !excelTeamsData[teamKey]){
+      document.getElementById(countLabelId).textContent = '0 / 7';
+      return;
+    }
+    const players = excelTeamsData[teamKey].players;
+    players.forEach((p, idx)=>{
+      const row = document.createElement('label');
+      row.className = 'roster-player';
+      row.style.cursor = 'pointer';
+      row.innerHTML = '<input type="checkbox" class="excel-onCourt-chk" data-idx="'+idx+'" '+(idx<7?'checked':'')+' style="width:auto; margin-right:4px; flex-shrink:0;">'
+        + '<span class="num">'+escapeHtml(p.number||'—')+'</span>'
+        + '<span class="pname">'+escapeHtml(p.name)+'</span>'
+        + '<span class="pos">'+escapeHtml(p.position)+'</span>';
+      container.appendChild(row);
+    });
+    updateExcelCount(containerId, countLabelId);
+    container.querySelectorAll('.excel-onCourt-chk').forEach(chk=>{
+      chk.addEventListener('change', ()=>{
+        const checkedCount = container.querySelectorAll('.excel-onCourt-chk:checked').length;
+        if(checkedCount>7){
+          chk.checked = false;
+          showToast('Only 7 players can be On Court at a time');
+        }
+        updateExcelCount(containerId, countLabelId);
+      });
+    });
+  }
+
+  function renderExcelPreview(){
+    const keyA = document.getElementById('rosterExcelTeamASelect').value;
+    const keyB = document.getElementById('rosterExcelTeamBSelect').value;
+    buildExcelPreviewList('rosterExcelPreviewA', 'rosterExcelACountLabel', keyA);
+    buildExcelPreviewList('rosterExcelPreviewB', 'rosterExcelBCountLabel', keyB);
+  }
+  document.getElementById('rosterExcelTeamASelect').addEventListener('change', renderExcelPreview);
+  document.getElementById('rosterExcelTeamBSelect').addEventListener('change', renderExcelPreview);
+
+  document.getElementById('rosterExcelConfirmBtn').addEventListener('click', async ()=>{
+    const state = localState; if(!state){ showToast('Connect to a match first'); return; }
+    if(!excelTeamsData){ showToast('Read a file first'); return; }
+    const keyA = document.getElementById('rosterExcelTeamASelect').value;
+    const keyB = document.getElementById('rosterExcelTeamBSelect').value;
+    const teamA = excelTeamsData[keyA];
+    const teamB = excelTeamsData[keyB];
+    if(!teamA || !teamB){ showToast('Pick a team for both A and B'); return; }
+    const replace = document.getElementById('rosterExcelReplaceChk').checked;
+
+    function collectStatuses(containerId){
+      return Array.from(document.getElementById(containerId).querySelectorAll('.excel-onCourt-chk')).map(chk=>chk.checked);
+    }
+    const statusesA = collectStatuses('rosterExcelPreviewA');
+    const statusesB = collectStatuses('rosterExcelPreviewB');
+
+    function buildRoster(teamData, statuses){
+      return teamData.players.map((p, idx)=>({
+        id: 'p'+Date.now()+Math.floor(Math.random()*100000)+idx,
+        number: p.number, name: p.name, position: p.position,
+        status: statuses[idx] ? 'active' : 'bench'
+      }));
+    }
+    const newRosterA = buildRoster(teamA, statusesA);
+    const newRosterB = buildRoster(teamB, statusesB);
+
+    state.rosterA = replace ? newRosterA : (Array.isArray(state.rosterA) ? state.rosterA : []).concat(newRosterA);
+    state.rosterB = replace ? newRosterB : (Array.isArray(state.rosterB) ? state.rosterB : []).concat(newRosterB);
+
+    // set the match team names to the teams picked from the file
+    state.teamA = teamA.label;
+    state.teamB = teamB.label;
+    document.getElementById('setupNameA').value = state.teamA;
+    document.getElementById('setupNameB').value = state.teamB;
+
+    await saveState(state);
+    const statusEl = document.getElementById('rosterExcelStatus');
+    statusEl.textContent = 'Imported ' + newRosterA.length + ' player(s) for ' + teamA.label + ' and ' + newRosterB.length + ' for ' + teamB.label + '.';
+    showToast('Teams imported: ' + teamA.label + ' vs ' + teamB.label);
+    document.getElementById('rosterExcelTeamPick').classList.add('hidden');
+    document.getElementById('rosterExcelFile').value = '';
+    excelTeamsData = null;
+  });
+
+  /* ---------- control panel tabs (Match Control vs Team & Players) ---------- */
+  document.getElementById('ctrlTabMatchBtn').addEventListener('click', ()=>{
+    document.getElementById('tabMatchControl').classList.remove('hidden');
+    document.getElementById('tabTeamPlayers').classList.add('hidden');
+    document.getElementById('ctrlTabMatchBtn').classList.add('active');
+    document.getElementById('ctrlTabTeamBtn').classList.remove('active');
+  });
+  document.getElementById('ctrlTabTeamBtn').addEventListener('click', ()=>{
+    document.getElementById('tabTeamPlayers').classList.remove('hidden');
+    document.getElementById('tabMatchControl').classList.add('hidden');
+    document.getElementById('ctrlTabTeamBtn').classList.add('active');
+    document.getElementById('ctrlTabMatchBtn').classList.remove('active');
+  });
+
+  /* ---------- player replace (substitution) ---------- */
+  let pendingSubTeam = null, pendingSubOutId = null;
+  function openSubModal(team, outPlayerId){
+    const state = localState; if(!state) return;
+    pendingSubTeam = team; pendingSubOutId = outPlayerId;
+    const roster = (team==='A' ? state.rosterA : state.rosterB) || [];
+    const outPlayer = roster.find(p=>p.id===outPlayerId);
+    if(!outPlayer) return;
+    document.getElementById('subModalTitle').textContent = 'Replace ' + outPlayer.name;
+    document.getElementById('subModalSub').textContent = 'Choose who is coming on for #' + (outPlayer.number||'—') + ' ' + outPlayer.name + ' (' + outPlayer.position + ')';
+    const sel = document.getElementById('subInSelect');
+    sel.innerHTML = '';
+    const benchPlayers = roster.filter(p=>p.id!==outPlayerId && (p.status||'active')==='bench');
+    const samePos = benchPlayers.filter(p=>p.position===outPlayer.position);
+    const otherPos = benchPlayers.filter(p=>p.position!==outPlayer.position);
+    if(samePos.length){
+      const grp = document.createElement('optgroup');
+      grp.label = 'Same position (' + outPlayer.position + ')';
+      samePos.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = '#'+(p.number||'—')+' '+p.name+' ('+p.position+')';
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    }
+    if(otherPos.length){
+      const grp2 = document.createElement('optgroup');
+      grp2.label = samePos.length ? 'Other bench players (will play ' + outPlayer.position + ')' : 'No ' + outPlayer.position + ' on bench — pick someone to play ' + outPlayer.position;
+      otherPos.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = '#'+(p.number||'—')+' '+p.name+' ('+p.position+' → '+outPlayer.position+')';
+        grp2.appendChild(opt);
+      });
+      sel.appendChild(grp2);
+    }
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New player';
+    sel.appendChild(newOpt);
+    document.getElementById('subNewPlayerFields').style.display = sel.value==='__new__' ? '' : 'none';
+    document.getElementById('subModal').classList.remove('hidden');
+  }
+  function closeSubModal(){
+    pendingSubTeam = null; pendingSubOutId = null;
+    document.getElementById('subModal').classList.add('hidden');
+    document.getElementById('subNewNumInput').value = '';
+    document.getElementById('subNewNameInput').value = '';
+  }
+  document.getElementById('subInSelect').addEventListener('change', (e)=>{
+    document.getElementById('subNewPlayerFields').style.display = e.target.value==='__new__' ? '' : 'none';
+  });
+  document.getElementById('subCancelBtn').addEventListener('click', closeSubModal);
+  document.getElementById('subConfirmBtn').addEventListener('click', async ()=>{
+    const state = localState; if(!state || !pendingSubTeam || !pendingSubOutId){ closeSubModal(); return; }
+    const key = pendingSubTeam==='A' ? 'rosterA' : 'rosterB';
+    const roster = state[key] || [];
+    const outIdx = roster.findIndex(p=>p.id===pendingSubOutId);
+    if(outIdx===-1){ closeSubModal(); return; }
+    const outPlayer = roster[outIdx];
+    const sel = document.getElementById('subInSelect');
+    let inPlayer;
+    if(sel.value === '__new__'){
+      const newName = document.getElementById('subNewNameInput').value.trim();
+      if(!newName){ showToast('Enter the new player\'s name'); return; }
+      const newNum = document.getElementById('subNewNumInput').value.trim();
+      inPlayer = { id: 'p'+Date.now()+Math.floor(Math.random()*1000), number: newNum, name: newName, position: outPlayer.position, status: 'active' };
+      roster.push(inPlayer);
+    } else {
+      const inIdx = roster.findIndex(p=>p.id===sel.value);
+      if(inIdx===-1){ showToast('Pick a player coming on'); return; }
+      inPlayer = roster[inIdx];
+      inPlayer.status = 'active';
+      inPlayer.position = outPlayer.position;
+    }
+    outPlayer.status = 'bench';
+    const seg = currentSegment(state);
+    const timeStr = fmt(elapsedMatchTime(state));
+    if(!Array.isArray(state.subLog)) state.subLog = [];
+    state.subLog.push({
+      id: 's'+Date.now()+Math.floor(Math.random()*1000),
+      team: pendingSubTeam,
+      outName: outPlayer.name, outNumber: outPlayer.number,
+      inName: inPlayer.name, inNumber: inPlayer.number,
+      position: outPlayer.position,
+      segLabel: seg.label, timeStr: timeStr,
+      timestamp: nowMs()
+    });
+    closeSubModal();
+    await saveState(state);
+    showToast('Replaced ' + outPlayer.name + ' with ' + inPlayer.name);
+  });
+
   /* ---------- score buttons ---------- */
+  let pendingShotTeam = null;
+  function openShotModal(team, teamName){
+    pendingShotTeam = team;
+    document.getElementById('shotModalTeamName').textContent = 'Who scored for ' + (teamName||'this team') + '?';
+    document.getElementById('shotTypeModal').classList.remove('hidden');
+  }
+  function closeShotModal(){
+    pendingShotTeam = null;
+    document.getElementById('shotTypeModal').classList.add('hidden');
+  }
+  async function confirmShot(position){
+    if(!pendingShotTeam || !localState){ closeShotModal(); return; }
+    const state = localState;
+    const team = pendingShotTeam;
+    closeShotModal();
+    if(team==='A') state.scoreA = Math.max(0, state.scoreA + 1);
+    else state.scoreB = Math.max(0, state.scoreB + 1);
+    const key = team==='A' ? 'shotsA' : 'shotsB';
+    if(!state[key]) state[key] = {gs:0, ga:0};
+    if(position==='GS') state[key].gs = (state[key].gs||0) + 1;
+    else state[key].ga = (state[key].ga||0) + 1;
+    // Every goal flips the centre pass arrow to the other side.
+    state.centerPassTeam = (state.centerPassTeam === 'A') ? 'B' : 'A';
+
+    // log this shot with the quarter and clock time it happened, for the PDF scorecard
+    const roster = (team==='A' ? state.rosterA : state.rosterB) || [];
+    const onCourtAtPos = roster.filter(p=>(p.status||'active')==='active' && p.position===position);
+    const scorerName = onCourtAtPos.length===1 ? onCourtAtPos[0].name : '';
+    const seg = currentSegment(state);
+    if(!Array.isArray(state.shotLog)) state.shotLog = [];
+    state.shotLog.push({
+      id: 'g'+Date.now()+Math.floor(Math.random()*1000),
+      team: team, teamName: team==='A' ? state.teamA : state.teamB,
+      position: position, scorerName: scorerName,
+      segLabel: seg.label, timeStr: fmt(elapsedMatchTime(state)),
+      scoreAAfter: state.scoreA, scoreBAfter: state.scoreB,
+      timestamp: nowMs()
+    });
+
+    await saveState(state);
+  }
+  document.getElementById('shotBtnGS').addEventListener('click', ()=>confirmShot('GS'));
+  document.getElementById('shotBtnGA').addEventListener('click', ()=>confirmShot('GA'));
+  document.getElementById('shotBtnCancel').addEventListener('click', closeShotModal);
+
   document.querySelectorAll('.round-btn[data-team]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!localState) return;
@@ -1317,13 +2201,14 @@
       }
       const team = btn.getAttribute('data-team');
       const delta = parseInt(btn.getAttribute('data-delta'));
+      if(delta > 0){
+        // ask which position (GS or GA) took the shot before adding the goal
+        openShotModal(team, team==='A' ? state.teamA : state.teamB);
+        return;
+      }
+      // correction (-1): apply directly, no position prompt
       if(team==='A') state.scoreA = Math.max(0, state.scoreA + delta);
       else state.scoreB = Math.max(0, state.scoreB + delta);
-      // Every goal flips the centre pass arrow to the other side — regardless of which team scored.
-      // Only flip on a genuine goal (+1), not on a correction (-1).
-      if(delta > 0){
-        state.centerPassTeam = (state.centerPassTeam === 'A') ? 'B' : 'A';
-      }
       await saveState(state);
     });
   });
@@ -1520,6 +2405,16 @@
     showToast('Logos & organizer names updated');
   });
 
+  document.getElementById('ctrlSaveTeamNames').addEventListener('click', async ()=>{
+    const state = localState; if(!state) return;
+    state.teamA = document.getElementById('setupNameA').value.trim() || 'TEAM A';
+    state.teamB = document.getElementById('setupNameB').value.trim() || 'TEAM B';
+    state.colorA = document.getElementById('setupColorA').value;
+    state.colorB = document.getElementById('setupColorB').value;
+    await saveState(state);
+    showToast('Team names saved: ' + state.teamA + ' vs ' + state.teamB);
+  });
+
   document.getElementById('ctrlApplySetup').addEventListener('click', async ()=>{
     const state = localState; if(!state) return;
     state.teamA = document.getElementById('setupNameA').value.trim() || 'TEAM A';
@@ -1550,6 +2445,7 @@
     fresh.pairingCodeVisible = state.pairingCodeVisible;
     fresh.leftLogoUrl = state.leftLogoUrl; fresh.rightLogoUrl = state.rightLogoUrl;
     fresh.leftOrgName = state.leftOrgName; fresh.rightOrgName = state.rightOrgName;
+    fresh.rosterA = state.rosterA; fresh.rosterB = state.rosterB;
     fresh.segments = buildSegments(fresh.periodMinutes, fresh.intervalMinutesList, fresh.totalPeriods);
     fresh.timerRemaining = fresh.segments[0].duration;
     await saveState(fresh);
@@ -1706,20 +2602,100 @@
       ctx.fillStyle = 'rgba(11,31,58,0.45)';
       ctx.fillText('Generated by the Netball Live Scoreboard — Government of Sri Lanka / Netball Federation of Sri Lanka', W/2, H-24);
 
-      canvas.toBlob((blob)=>{
-        if(!blob){ showToast('Could not generate scorecard image'); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const safeA = (state.teamA||'TeamA').replace(/[^a-z0-9]+/gi,'_');
-        const safeB = (state.teamB||'TeamB').replace(/[^a-z0-9]+/gi,'_');
-        a.href = url;
-        a.download = 'scorecard_' + safeA + '_vs_' + safeB + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(()=>URL.revokeObjectURL(url), 4000);
-        showToast('Scorecard downloaded');
-      }, 'image/png');
+      const imgData = canvas.toDataURL('image/png');
+      const safeA = (state.teamA||'TeamA').replace(/[^a-z0-9]+/gi,'_');
+      const safeB = (state.teamB||'TeamB').replace(/[^a-z0-9]+/gi,'_');
+
+      if(typeof window.jspdf === 'undefined'){
+        showToast('PDF library failed to load — check your connection');
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'landscape', unit:'px', format:[W,H] });
+      pdf.addImage(imgData, 'PNG', 0, 0, W, H);
+
+      const hasAutoTable = typeof pdf.autoTable === 'function';
+      const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
+      const subLog = Array.isArray(state.subLog) ? state.subLog : [];
+
+      if(shotLog.length){
+        pdf.addPage([W,H], 'landscape');
+        pdf.setFontSize(20); pdf.setTextColor(NAVY);
+        pdf.text('Shot-by-Shot Log', 40, 44);
+        pdf.setFontSize(11); pdf.setTextColor('#666666');
+        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), 40, 64);
+
+        const rows = shotLog.map((s,i)=>[
+          String(i+1),
+          s.teamName || (s.team==='A'?state.teamA:state.teamB) || '',
+          s.position || '',
+          s.scorerName || '—',
+          s.segLabel || '',
+          s.timeStr || '',
+          s.scoreAAfter + ' - ' + s.scoreBAfter
+        ]);
+        if(hasAutoTable){
+          pdf.autoTable({
+            startY: 80,
+            head: [['#','Team','Pos','Player','Quarter','Match Time (mm:ss)','Score After']],
+            body: rows,
+            margin: {left:40, right:40},
+            styles: {fontSize:10, cellPadding:5},
+            headStyles: {fillColor:[11,31,58], textColor:255},
+            didDrawPage: function(){
+              pdf.setFontSize(20); pdf.setTextColor(NAVY);
+            }
+          });
+        } else {
+          // fallback: plain text listing if the table plugin failed to load
+          let ty = 90;
+          pdf.setFontSize(10); pdf.setTextColor('#111111');
+          rows.forEach(r=>{
+            if(ty > H-30){ pdf.addPage([W,H],'landscape'); ty = 40; }
+            pdf.text(r.join('   |   '), 40, ty);
+            ty += 18;
+          });
+        }
+      }
+
+      if(subLog.length){
+        pdf.addPage([W,H], 'landscape');
+        pdf.setFontSize(20); pdf.setTextColor(NAVY);
+        pdf.text('Player Replace Log', 40, 44);
+        pdf.setFontSize(11); pdf.setTextColor('#666666');
+        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), 40, 64);
+
+        const subRows = subLog.map((s,i)=>[
+          String(i+1),
+          s.team==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B'),
+          '#'+(s.outNumber||'—')+' '+(s.outName||''),
+          '#'+(s.inNumber||'—')+' '+(s.inName||''),
+          s.position || '',
+          s.segLabel || '',
+          s.timeStr || ''
+        ]);
+        if(hasAutoTable){
+          pdf.autoTable({
+            startY: 80,
+            head: [['#','Team','Player Out','Player In','Pos','Quarter','Match Time (mm:ss)']],
+            body: subRows,
+            margin: {left:40, right:40},
+            styles: {fontSize:10, cellPadding:5},
+            headStyles: {fillColor:[11,31,58], textColor:255}
+          });
+        } else {
+          let ty = 90;
+          pdf.setFontSize(10); pdf.setTextColor('#111111');
+          subRows.forEach(r=>{
+            if(ty > H-30){ pdf.addPage([W,H],'landscape'); ty = 40; }
+            pdf.text(r.join('   |   '), 40, ty);
+            ty += 18;
+          });
+        }
+      }
+
+      pdf.save('scorecard_' + safeA + '_vs_' + safeB + '.pdf');
+      showToast('PDF scorecard downloaded');
     }catch(e){
       console.error('scorecard generation failed', e);
       showToast('Could not generate scorecard');
