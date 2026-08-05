@@ -127,6 +127,20 @@
   .next-match-bar b{color:var(--gold); font-weight:600;}
   .next-match-bar.hidden{display:none;}
 
+  .last-scorer-bar{
+    text-align:center; padding:10px 20px; font-size:17px; letter-spacing:.03em;
+    color:rgba(245,241,230,0.9); background:rgba(232,121,46,0.14);
+    border:1px solid rgba(212,169,74,0.4); border-radius:14px;
+    width:min(560px,92%);
+  }
+  .last-scorer-bar .tag{
+    font-size:11px; letter-spacing:.2em; font-weight:700; color:var(--gold);
+    text-transform:uppercase; display:block; margin-bottom:2px;
+  }
+  .last-scorer-bar b{font-weight:700;}
+  .last-scorer-bar.hidden{display:none;}
+  html[data-theme="light"] .last-scorer-bar{ background:rgba(212,169,74,0.14); border-color:var(--pdf-navy); color:var(--pdf-navy); }
+
   .scoreboard-main{
     flex:1; position:relative; z-index:2;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -683,6 +697,11 @@
       <div class="seg-label-box" id="dispSegLabel">QUARTER 1</div>
       <div class="score-col" id="dispScoreB">0</div>
     </div>
+
+    <div class="last-scorer-bar hidden" id="dispLastScorer">
+      <span class="tag">Last Scorer</span>
+      <span id="dispLastScorerText"></span>
+    </div>
   </div>
 
   <div class="bottombar">Ministry of Sports &amp; Youth Affairs — Official Digital Scoreboard &nbsp;·&nbsp; Developed by Y.M V A D Yapa</div>
@@ -902,7 +921,7 @@
 
   <div class="card">
     <h3>Import from Excel</h3>
-    <p style="margin:0 0 12px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Upload a .xlsx / .csv file containing player squads. Columns: <b>Team</b> (the team's name), <b>Number</b>, <b>Name</b>, <b>Position</b>. First row is treated as a header and skipped. After reading the file, choose which team is <b>Team A</b> and which is <b>Team B</b> from the dropdowns, then tick the first 7 (starting line-up) for each team — everyone else goes to the bench automatically. You can also tap a player's "On Court / Bench" badge afterwards to change it.</p>
+    <p style="margin:0 0 12px; font-size:13px; color:rgba(245,241,230,0.55); line-height:1.4;">Upload a .xlsx / .csv file containing player squads. Columns: <b>Team</b> (the team's name), <b>Number</b>, <b>Name</b>, <b>Position</b>. First row is treated as a header and skipped. After reading the file, choose which team is <b>Team A</b> and which is <b>Team B</b> from the dropdowns, then tick the first 7 (starting line-up) for each team — everyone else goes to the bench automatically. You can also tap a player's "On Court / Bench" badge afterwards to change it. Every team is capped at 12 players total (7 On Court + 5 bench) — this applies whether players are imported, added manually, or a mix of both.</p>
     <input type="file" id="rosterExcelFile" accept=".xlsx,.xls,.csv" style="width:100%; margin-bottom:10px;">
     <button class="btn btn-outline" id="rosterExcelReadBtn">📄 Read File</button>
     <div id="rosterExcelStatus" style="margin-top:8px; font-size:13px; color:rgba(245,241,230,0.6);"></div>
@@ -984,6 +1003,16 @@
       <button class="btn btn-primary" id="shotBtnGA">GA<br><span style="font-size:11px; font-weight:400;">Goal Attack</span></button>
     </div>
     <button class="btn btn-outline modal-cancel" id="shotBtnCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="shotPlayerModal">
+  <div class="modal-box">
+    <h3 id="shotPlayerModalTitle">Who scored?</h3>
+    <p class="sub" id="shotPlayerModalSub">Tap the player who took this shot, so their name is on the scorecard</p>
+    <div class="roster-list" id="shotPlayerList" style="margin-bottom:14px; max-height:260px; overflow-y:auto;"></div>
+    <button class="btn btn-outline" id="shotPlayerSkipBtn" style="margin-bottom:8px;">Skip — record goal without a name</button>
+    <button class="btn btn-outline modal-cancel" id="shotPlayerCancelBtn">Cancel this goal</button>
   </div>
 </div>
 
@@ -1378,6 +1407,8 @@
   /* ---------- theme: app is dark-only now, no toggle ---------- */
 
   /* ---------- team & player registration (roster) ---------- */
+  const MAX_SQUAD_SIZE = 12; // hard cap on total registered players per team
+  const MAX_ON_COURT = 7;    // hard cap on players marked "On Court" per team
   let rosterActiveTeam = 'A';
   let lastRosterRenderKey = null;
   function renderRoster(state){
@@ -1436,9 +1467,19 @@
       btn.addEventListener('click', async ()=>{
         const state = localState; if(!state) return;
         const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
-        const player = (state[key]||[]).find(p=>p.id===btn.getAttribute('data-id'));
+        const roster = state[key]||[];
+        const player = roster.find(p=>p.id===btn.getAttribute('data-id'));
         if(!player) return;
-        player.status = (player.status==='bench') ? 'active' : 'bench';
+        if(player.status==='bench'){
+          const activeCount = roster.filter(p=>p.status!=='bench').length;
+          if(activeCount >= MAX_ON_COURT){
+            showToast('Only ' + MAX_ON_COURT + ' players can be On Court at a time');
+            return;
+          }
+          player.status = 'active';
+        } else {
+          player.status = 'bench';
+        }
         await saveState(state);
         showToast(player.name + ' set to ' + (player.status==='bench' ? 'Bench' : 'On Court'));
       });
@@ -1573,6 +1614,21 @@
         nb.classList.remove('hidden');
       } else {
         nb.classList.add('hidden');
+      }
+
+      // Last scorer — shows the on-court player who was picked/auto-matched
+      // for the most recent goal, so the crowd sees who's actually shooting.
+      const lsBar = document.getElementById('dispLastScorer');
+      const lsText = document.getElementById('dispLastScorerText');
+      const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
+      const lastShot = shotLog.length ? shotLog[shotLog.length-1] : null;
+      if(lastShot){
+        const teamColor = lastShot.team === 'A' ? (state.colorA||'#e8792e') : (state.colorB||'#e8792e');
+        const nameLabel = lastShot.scorerName ? escapeHtml(lastShot.scorerName) : 'Unlisted player';
+        lsText.innerHTML = '<b style="color:'+teamColor+'">'+nameLabel+'</b> &middot; '+escapeHtml(lastShot.position||'')+' &middot; '+escapeHtml(lastShot.teamName||'');
+        lsBar.classList.remove('hidden');
+      } else {
+        lsBar.classList.add('hidden');
       }
     }
 
@@ -1876,13 +1932,26 @@
     const posEl = document.getElementById('rosterPosInput');
     const name = nameEl.value.trim();
     if(!name){ showToast('Enter a player name first'); return; }
-    const player = { id: 'p'+Date.now()+Math.floor(Math.random()*1000), number: numEl.value.trim(), name: name, position: posEl.value, status: rosterAddStatus };
     const key = rosterActiveTeam==='A' ? 'rosterA' : 'rosterB';
     if(!Array.isArray(state[key])) state[key] = [];
+    const teamLabel = rosterActiveTeam==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B');
+    if(state[key].length >= MAX_SQUAD_SIZE){
+      showToast(teamLabel + ' squad is already full (' + MAX_SQUAD_SIZE + ' players max)');
+      return;
+    }
+    let statusToUse = rosterAddStatus;
+    if(statusToUse === 'active'){
+      const activeCount = state[key].filter(p=>p.status!=='bench').length;
+      if(activeCount >= MAX_ON_COURT){
+        statusToUse = 'bench';
+        showToast('On-court is already full (' + MAX_ON_COURT + '/' + MAX_ON_COURT + ') — ' + name + ' added to bench instead');
+      }
+    }
+    const player = { id: 'p'+Date.now()+Math.floor(Math.random()*1000), number: numEl.value.trim(), name: name, position: posEl.value, status: statusToUse };
     state[key].push(player);
     numEl.value = ''; nameEl.value = ''; posEl.value = 'GS';
     await saveState(state);
-    showToast('Player added: ' + name);
+    if(statusToUse === rosterAddStatus) showToast('Player added: ' + name);
   });
 
   /* ---------- Excel import for teams & players ---------- */
@@ -1950,22 +2019,29 @@
   function updateExcelCount(containerId, countLabelId){
     const container = document.getElementById(containerId);
     const checkedCount = container.querySelectorAll('.excel-onCourt-chk:checked').length;
-    document.getElementById(countLabelId).textContent = checkedCount + ' / 7';
+    document.getElementById(countLabelId).textContent = checkedCount + ' / ' + MAX_ON_COURT;
   }
 
   function buildExcelPreviewList(containerId, countLabelId, teamKey){
     const container = document.getElementById(containerId);
     container.innerHTML = '';
     if(!excelTeamsData || !teamKey || !excelTeamsData[teamKey]){
-      document.getElementById(countLabelId).textContent = '0 / 7';
+      document.getElementById(countLabelId).textContent = '0 / ' + MAX_ON_COURT;
       return;
     }
-    const players = excelTeamsData[teamKey].players;
+    const allPlayers = excelTeamsData[teamKey].players;
+    const players = allPlayers.slice(0, MAX_SQUAD_SIZE);
+    if(allPlayers.length > MAX_SQUAD_SIZE){
+      const note = document.createElement('div');
+      note.className = 'roster-empty';
+      note.textContent = 'Only the first ' + MAX_SQUAD_SIZE + ' of ' + allPlayers.length + ' players in the file will be imported (squad limit is ' + MAX_SQUAD_SIZE + ').';
+      container.appendChild(note);
+    }
     players.forEach((p, idx)=>{
       const row = document.createElement('label');
       row.className = 'roster-player';
       row.style.cursor = 'pointer';
-      row.innerHTML = '<input type="checkbox" class="excel-onCourt-chk" data-idx="'+idx+'" '+(idx<7?'checked':'')+' style="width:auto; margin-right:4px; flex-shrink:0;">'
+      row.innerHTML = '<input type="checkbox" class="excel-onCourt-chk" data-idx="'+idx+'" '+(idx<MAX_ON_COURT?'checked':'')+' style="width:auto; margin-right:4px; flex-shrink:0;">'
         + '<span class="num">'+escapeHtml(p.number||'—')+'</span>'
         + '<span class="pname">'+escapeHtml(p.name)+'</span>'
         + '<span class="pos">'+escapeHtml(p.position)+'</span>';
@@ -1975,9 +2051,9 @@
     container.querySelectorAll('.excel-onCourt-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
         const checkedCount = container.querySelectorAll('.excel-onCourt-chk:checked').length;
-        if(checkedCount>7){
+        if(checkedCount>MAX_ON_COURT){
           chk.checked = false;
-          showToast('Only 7 players can be On Court at a time');
+          showToast('Only ' + MAX_ON_COURT + ' players can be On Court at a time');
         }
         updateExcelCount(containerId, countLabelId);
       });
@@ -2010,7 +2086,9 @@
     const statusesB = collectStatuses('rosterExcelPreviewB');
 
     function buildRoster(teamData, statuses){
-      return teamData.players.map((p, idx)=>({
+      // never build more than the squad cap, no matter how many rows the file had
+      const players = teamData.players.slice(0, MAX_SQUAD_SIZE);
+      return players.map((p, idx)=>({
         id: 'p'+Date.now()+Math.floor(Math.random()*100000)+idx,
         number: p.number, name: p.name, position: p.position,
         status: statuses[idx] ? 'active' : 'bench'
@@ -2019,8 +2097,37 @@
     const newRosterA = buildRoster(teamA, statusesA);
     const newRosterB = buildRoster(teamB, statusesB);
 
-    state.rosterA = replace ? newRosterA : (Array.isArray(state.rosterA) ? state.rosterA : []).concat(newRosterA);
-    state.rosterB = replace ? newRosterB : (Array.isArray(state.rosterB) ? state.rosterB : []).concat(newRosterB);
+    // Merge with any existing roster (manual + import "hybrid" case) but never
+    // let a team's total squad go past MAX_SQUAD_SIZE, whatever the source.
+    function mergeRoster(existing, incoming, teamLabel){
+      if(replace) return incoming.slice(0, MAX_SQUAD_SIZE);
+      const current = Array.isArray(existing) ? existing.slice() : [];
+      const room = Math.max(0, MAX_SQUAD_SIZE - current.length);
+      const toAdd = incoming.slice(0, room);
+      if(incoming.length > toAdd.length){
+        showToast(teamLabel + ' squad is full — only added ' + toAdd.length + ' of ' + incoming.length + ' imported players (12 max)');
+      }
+      return current.concat(toAdd);
+    }
+    state.rosterA = mergeRoster(state.rosterA, newRosterA, teamA.label);
+    state.rosterB = mergeRoster(state.rosterB, newRosterB, teamB.label);
+
+    // Also make sure "On Court" never exceeds MAX_ON_COURT once merged with
+    // whatever was already active on the existing roster (hybrid scenario).
+    function capActiveCount(roster, teamLabel){
+      let activeCount = 0, demoted = 0;
+      roster.forEach(p=>{
+        if(p.status !== 'bench'){
+          activeCount++;
+          if(activeCount > MAX_ON_COURT){ p.status = 'bench'; demoted++; }
+        }
+      });
+      if(demoted>0){
+        showToast(demoted + ' extra On Court player(s) for ' + teamLabel + ' moved to bench (max ' + MAX_ON_COURT + ')');
+      }
+    }
+    capActiveCount(state.rosterA, teamA.label);
+    capActiveCount(state.rosterB, teamB.label);
 
     // set the match team names to the teams picked from the file
     state.teamA = teamA.label;
@@ -2147,6 +2254,7 @@
 
   /* ---------- score buttons ---------- */
   let pendingShotTeam = null;
+  let pendingPlayerPickTeam = null, pendingPlayerPickPosition = null;
   function openShotModal(team, teamName){
     pendingShotTeam = team;
     document.getElementById('shotModalTeamName').textContent = 'Who scored for ' + (teamName||'this team') + '?';
@@ -2156,11 +2264,68 @@
     pendingShotTeam = null;
     document.getElementById('shotTypeModal').classList.add('hidden');
   }
+
+  function openShotPlayerModal(team, position, candidates){
+    pendingPlayerPickTeam = team;
+    pendingPlayerPickPosition = position;
+    const state = localState;
+    const teamName = team==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B');
+    document.getElementById('shotPlayerModalTitle').textContent = 'Who scored this ' + position + ' for ' + teamName + '?';
+    const listEl = document.getElementById('shotPlayerList');
+    listEl.innerHTML = '';
+    candidates.forEach(p=>{
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-outline';
+      btn.style.cssText = 'width:100%; margin-bottom:8px; text-align:left;';
+      btn.textContent = '#' + (p.number!=null && p.number!=='' ? p.number : '—') + '  ' + (p.name||'Unnamed') + (p.position ? '  ·  ' + p.position : '');
+      btn.addEventListener('click', async ()=>{
+        closeShotPlayerModal();
+        await finalizeShot(team, position, p.name);
+      });
+      listEl.appendChild(btn);
+    });
+    document.getElementById('shotPlayerModal').classList.remove('hidden');
+  }
+  function closeShotPlayerModal(){
+    document.getElementById('shotPlayerModal').classList.add('hidden');
+    pendingPlayerPickTeam = null;
+    pendingPlayerPickPosition = null;
+  }
+  document.getElementById('shotPlayerSkipBtn').addEventListener('click', async ()=>{
+    const team = pendingPlayerPickTeam, position = pendingPlayerPickPosition;
+    closeShotPlayerModal();
+    if(team && position) await finalizeShot(team, position, '');
+  });
+  document.getElementById('shotPlayerCancelBtn').addEventListener('click', ()=>{
+    closeShotPlayerModal();
+  });
+
   async function confirmShot(position){
     if(!pendingShotTeam || !localState){ closeShotModal(); return; }
     const state = localState;
     const team = pendingShotTeam;
     closeShotModal();
+
+    // Figure out who's actually on court to attribute this goal to, instead of
+    // silently logging a blank name when the roster's positions are ambiguous.
+    const roster = (team==='A' ? state.rosterA : state.rosterB) || [];
+    const onCourt = roster.filter(p=>(p.status||'active')==='active');
+    let candidates = onCourt.filter(p=>p.position===position);
+    if(candidates.length === 0) candidates = onCourt; // no one set to this exact position — let the user pick from whoever's on court
+
+    if(candidates.length === 1){
+      await finalizeShot(team, position, candidates[0].name);
+    } else if(candidates.length > 1){
+      openShotPlayerModal(team, position, candidates);
+    } else {
+      // nobody registered on court for this team at all
+      await finalizeShot(team, position, '');
+    }
+  }
+
+  async function finalizeShot(team, position, scorerName){
+    const state = localState;
+    if(!state) return;
     if(team==='A') state.scoreA = Math.max(0, state.scoreA + 1);
     else state.scoreB = Math.max(0, state.scoreB + 1);
     const key = team==='A' ? 'shotsA' : 'shotsB';
@@ -2171,15 +2336,12 @@
     state.centerPassTeam = (state.centerPassTeam === 'A') ? 'B' : 'A';
 
     // log this shot with the quarter and clock time it happened, for the PDF scorecard
-    const roster = (team==='A' ? state.rosterA : state.rosterB) || [];
-    const onCourtAtPos = roster.filter(p=>(p.status||'active')==='active' && p.position===position);
-    const scorerName = onCourtAtPos.length===1 ? onCourtAtPos[0].name : '';
     const seg = currentSegment(state);
     if(!Array.isArray(state.shotLog)) state.shotLog = [];
     state.shotLog.push({
       id: 'g'+Date.now()+Math.floor(Math.random()*1000),
       team: team, teamName: team==='A' ? state.teamA : state.teamB,
-      position: position, scorerName: scorerName,
+      position: position, scorerName: scorerName || '',
       segLabel: seg.label, timeStr: fmt(elapsedMatchTime(state)),
       scoreAAfter: state.scoreA, scoreBAfter: state.scoreB,
       timestamp: nowMs()
@@ -2190,6 +2352,7 @@
   document.getElementById('shotBtnGS').addEventListener('click', ()=>confirmShot('GS'));
   document.getElementById('shotBtnGA').addEventListener('click', ()=>confirmShot('GA'));
   document.getElementById('shotBtnCancel').addEventListener('click', closeShotModal);
+
 
   document.querySelectorAll('.round-btn[data-team]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -2493,114 +2656,222 @@
     ctx.stroke();
   }
 
+  function computeQuarterScores(state){
+    const segments = Array.isArray(state.segments) ? state.segments : [];
+    const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
+    const periods = segments.filter(s=>s.type==='period');
+    let lastA = 0, lastB = 0;
+    return periods.map(seg=>{
+      const entries = shotLog.filter(s=>s.segLabel===seg.label);
+      if(entries.length){
+        const last = entries[entries.length-1];
+        lastA = last.scoreAAfter; lastB = last.scoreBAfter;
+      }
+      return { label: seg.label, scoreA: lastA, scoreB: lastB };
+    });
+  }
+
   async function generateScorecard(){
     const state = localState;
     if(!state){ showToast('No match data to export yet'); return; }
     try{
-      const W = 1200, H = 900;
+      // Portrait, A4-proportioned canvas (595.28 x 841.89 pt is A4 — we render at
+      // 2x that in pixels for crisp print, then scale into a true A4 PDF page so
+      // it prints on a single physical sheet instead of an odd custom size).
+      const W = 1191, H = 1684;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
 
       const NAVY = '#0b1f3a', YELLOW = '#ffd400', RED = '#c41e24',
-            GREEN = '#159447', AMBER = '#f5a623', BLUE = '#29abe2', BG = '#ffffff';
+            GREEN = '#159447', AMBER = '#f5a623', BLUE = '#29abe2', BG = '#ffffff',
+            HAIRLINE = 'rgba(11,31,58,0.18)';
 
       // background
       ctx.fillStyle = BG;
       ctx.fillRect(0,0,W,H);
 
+      // formal outer border frame (double rule, like an official certificate)
+      ctx.strokeStyle = '#d4a94a'; ctx.lineWidth = 4;
+      ctx.strokeRect(18,18,W-36,H-36);
+      ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1.5;
+      ctx.strokeRect(28,28,W-56,H-56);
+
       // top navy header band
       ctx.fillStyle = NAVY;
-      ctx.fillRect(0,0,W,170);
+      ctx.fillRect(28,28,W-56,206);
 
       // logos (best-effort — if a logo fails to load, just skip it)
       const fedSrc = document.querySelector('#federationLogoBadge img') ? document.querySelector('#federationLogoBadge img').src : null;
       const govtSrc = document.querySelector('#ministryLogoBadge img') ? document.querySelector('#ministryLogoBadge img').src : null;
       try{
-        if(govtSrc){ const govtImg = await loadImageEl(govtSrc); drawCircularLogo(ctx, govtImg, 100, 85, 55); }
+        if(govtSrc){ const govtImg = await loadImageEl(govtSrc); drawCircularLogo(ctx, govtImg, 130, 118, 62); }
       }catch(e){}
       try{
-        if(fedSrc){ const fedImg = await loadImageEl(fedSrc); drawCircularLogo(ctx, fedImg, W-100, 85, 55); }
+        if(fedSrc){ const fedImg = await loadImageEl(fedSrc); drawCircularLogo(ctx, fedImg, W-130, 118, 62); }
       }catch(e){}
 
       // tournament title + subtitle
       ctx.textAlign = 'center';
       ctx.fillStyle = YELLOW;
-      ctx.font = '700 36px Arial, sans-serif';
+      ctx.font = '700 34px Arial, sans-serif';
       const tourneyName = state.tournamentName || 'National Netball Tournament';
-      ctx.fillText(tourneyName, W/2, 75);
+      wrapCenteredText(ctx, tourneyName, W/2, 78, 620, 38);
       ctx.fillStyle = '#ffffff';
-      ctx.font = '600 18px Arial, sans-serif';
-      ctx.fillText('OFFICIAL MATCH SCORECARD', W/2, 108);
+      ctx.font = '600 20px Arial, sans-serif';
+      ctx.fillText('OFFICIAL MATCH SCORECARD', W/2, 140);
       if(state.matchNumber){
         ctx.font = '500 16px Arial, sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillText(state.matchNumber, W/2, 136);
+        ctx.fillText(state.matchNumber, W/2, 168);
       }
-
-      // date
       const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'});
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '500 14px Arial, sans-serif';
-      ctx.fillText(dateStr, W/2, 158);
+      ctx.font = '500 15px Arial, sans-serif';
+      ctx.fillText(dateStr, W/2, 208);
 
       // team names + scores
       const scoreA = state.scoreA, scoreB = state.scoreB;
       const winnerA = scoreA > scoreB, winnerB = scoreB > scoreA;
 
       ctx.textAlign = 'center';
-      ctx.font = '700 30px Arial, sans-serif';
+      ctx.font = '700 32px Arial, sans-serif';
       ctx.fillStyle = state.colorA || RED;
-      wrapCenteredText(ctx, (state.teamA||'TEAM A').toUpperCase(), W*0.25, 300, 320, 34);
+      wrapCenteredText(ctx, (state.teamA||'TEAM A').toUpperCase(), W*0.25, 330, 400, 36);
 
       ctx.fillStyle = state.colorB || GREEN;
-      wrapCenteredText(ctx, (state.teamB||'TEAM B').toUpperCase(), W*0.75, 300, 320, 34);
+      wrapCenteredText(ctx, (state.teamB||'TEAM B').toUpperCase(), W*0.75, 330, 400, 36);
 
-      ctx.font = '900 160px Arial, sans-serif';
+      ctx.font = '900 150px Arial, sans-serif';
       ctx.fillStyle = NAVY;
-      ctx.fillText(String(scoreA), W*0.25, 470);
-      ctx.fillText(String(scoreB), W*0.75, 470);
+      ctx.fillText(String(scoreA), W*0.25, 500);
+      ctx.fillText(String(scoreB), W*0.75, 500);
 
-      ctx.font = '700 40px Arial, sans-serif';
+      ctx.font = '700 38px Arial, sans-serif';
       ctx.fillStyle = AMBER;
-      ctx.fillText('VS', W/2, 440);
+      ctx.fillText('VS', W/2, 470);
 
       // winner tags
-      ctx.font = '700 16px Arial, sans-serif';
+      ctx.font = '700 17px Arial, sans-serif';
       if(winnerA){
-        drawPill(ctx, W*0.25, 505, 'WINNER', GREEN);
+        drawPill(ctx, W*0.25, 545, 'WINNER', GREEN);
       } else if(winnerB){
-        drawPill(ctx, W*0.75, 505, 'WINNER', GREEN);
+        drawPill(ctx, W*0.75, 545, 'WINNER', GREEN);
       } else if(scoreA===scoreB){
-        drawPill(ctx, W/2, 505, 'DRAW', BLUE);
+        drawPill(ctx, W/2, 545, 'DRAW', BLUE);
       }
 
       // divider
-      ctx.strokeStyle = 'rgba(11,31,58,0.15)';
+      ctx.strokeStyle = HAIRLINE;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(80, 580);
-      ctx.lineTo(W-80, 580);
+      ctx.moveTo(80, 600);
+      ctx.lineTo(W-80, 600);
       ctx.stroke();
 
       // extra match facts
       ctx.textAlign = 'left';
-      ctx.font = '600 16px Arial, sans-serif';
+      ctx.font = '600 17px Arial, sans-serif';
       ctx.fillStyle = NAVY;
-      let fy = 630;
+      let fy = 638;
       const seg = currentSegment(state);
-      ctx.fillText('Result recorded at: ' + seg.label, 80, fy); fy += 34;
-      if(state.tossWinner === 'A'){ ctx.fillText('Toss won by: ' + state.teamA, 80, fy); fy += 34; }
-      else if(state.tossWinner === 'B'){ ctx.fillText('Toss won by: ' + state.teamB, 80, fy); fy += 34; }
+      ctx.fillText('Result recorded at: ' + seg.label, 80, fy); fy += 30;
+      if(state.tossWinner === 'A'){ ctx.fillText('Toss won by: ' + state.teamA, 80, fy); fy += 30; }
+      else if(state.tossWinner === 'B'){ ctx.fillText('Toss won by: ' + state.teamB, 80, fy); fy += 30; }
       if(state.nextTeamA || state.nextTeamB){
-        ctx.fillText('Next match: ' + (state.nextTeamA||'TBD') + ' vs ' + (state.nextTeamB||'TBD'), 80, fy); fy += 34;
+        ctx.fillText('Next match: ' + (state.nextTeamA||'TBD') + ' vs ' + (state.nextTeamB||'TBD'), 80, fy); fy += 30;
       }
+      fy += 14;
+
+      // ---- Team Points by Quarter (combined with the final score, formal table) ----
+      const quarterRows = computeQuarterScores(state);
+      ctx.font = '700 20px Arial, sans-serif';
+      ctx.fillStyle = NAVY;
+      ctx.fillText('TEAM POINTS BY QUARTER', 80, fy);
+      fy += 14;
+
+      const tblX = 80, tblW = W - 160;
+      const colQ = tblW * 0.4, colA = tblW * 0.3, colB = tblW * 0.3;
+      const rowH = 42;
+      const headerH = 44;
+      let ty = fy + 16;
+
+      // header row
+      ctx.fillStyle = NAVY;
+      ctx.fillRect(tblX, ty, tblW, headerH);
+      ctx.font = '700 16px Arial, sans-serif';
+      ctx.fillStyle = YELLOW;
+      ctx.textAlign = 'left';
+      ctx.fillText('QUARTER', tblX + 18, ty + headerH/2 + 6);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText((state.teamA||'TEAM A').toUpperCase(), tblX + colQ + colA/2, ty + headerH/2 + 6);
+      ctx.fillText((state.teamB||'TEAM B').toUpperCase(), tblX + colQ + colA + colB/2, ty + headerH/2 + 6);
+      ty += headerH;
+
+      quarterRows.forEach((row, idx)=>{
+        ctx.fillStyle = idx % 2 === 0 ? '#ffffff' : 'rgba(11,31,58,0.04)';
+        ctx.fillRect(tblX, ty, tblW, rowH);
+        ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1;
+        ctx.strokeRect(tblX, ty, tblW, rowH);
+        ctx.font = '600 16px Arial, sans-serif';
+        ctx.fillStyle = NAVY;
+        ctx.textAlign = 'left';
+        ctx.fillText(row.label, tblX + 18, ty + rowH/2 + 6);
+        ctx.font = '700 17px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(row.scoreA), tblX + colQ + colA/2, ty + rowH/2 + 6);
+        ctx.fillText(String(row.scoreB), tblX + colQ + colA + colB/2, ty + rowH/2 + 6);
+        ty += rowH;
+      });
+
+      // final row, highlighted
+      ctx.fillStyle = '#fff7e0';
+      ctx.fillRect(tblX, ty, tblW, rowH + 6);
+      ctx.strokeStyle = '#d4a94a'; ctx.lineWidth = 2;
+      ctx.strokeRect(tblX, ty, tblW, rowH + 6);
+      ctx.font = '700 17px Arial, sans-serif';
+      ctx.fillStyle = NAVY;
+      ctx.textAlign = 'left';
+      ctx.fillText('FINAL SCORE', tblX + 18, ty + (rowH+6)/2 + 6);
+      ctx.font = '900 20px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(scoreA), tblX + colQ + colA/2, ty + (rowH+6)/2 + 7);
+      ctx.fillText(String(scoreB), tblX + colQ + colA + colB/2, ty + (rowH+6)/2 + 7);
+      ty += rowH + 6;
+
+      // outer table border
+      ctx.strokeStyle = NAVY; ctx.lineWidth = 2;
+      ctx.strokeRect(tblX, fy + 16, tblW, ty - (fy + 16));
+
+      // ---- Match officials signatures (formal sign-off) ----
+      let sy = ty + 70;
+      ctx.textAlign = 'left';
+      ctx.font = '700 18px Arial, sans-serif';
+      ctx.fillStyle = NAVY;
+      ctx.fillText('MATCH OFFICIALS', 80, sy);
+      sy += 44;
+
+      function signatureLine(label, x, y, w){
+        ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
+        ctx.font = '500 13px Arial, sans-serif';
+        ctx.fillStyle = 'rgba(11,31,58,0.6)';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, x, y + 22);
+      }
+      const sigColW = (W - 160 - 40) / 2;
+      signatureLine('Umpire 1 — Name & Signature', 80, sy, sigColW);
+      signatureLine('Umpire 2 — Name & Signature', 80 + sigColW + 40, sy, sigColW);
+      sy += 66;
+      signatureLine('Scorer — Name & Signature', 80, sy, sigColW);
+      signatureLine('Table Official — Name & Signature', 80 + sigColW + 40, sy, sigColW);
 
       // footer
       ctx.textAlign = 'center';
       ctx.font = '500 14px Arial, sans-serif';
       ctx.fillStyle = 'rgba(11,31,58,0.45)';
-      ctx.fillText('Generated by the Netball Live Scoreboard — Government of Sri Lanka / Netball Federation of Sri Lanka', W/2, H-24);
+      ctx.fillText('Generated by the Netball Live Scoreboard — Government of Sri Lanka / Netball Federation of Sri Lanka', W/2, H-46);
 
       const imgData = canvas.toDataURL('image/png');
       const safeA = (state.teamA||'TeamA').replace(/[^a-z0-9]+/gi,'_');
@@ -2611,19 +2882,32 @@
         return;
       }
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation:'landscape', unit:'px', format:[W,H] });
-      pdf.addImage(imgData, 'PNG', 0, 0, W, H);
+      // True A4 portrait page — prints cleanly on one physical sheet instead of
+      // the old custom pixel-sized landscape page.
+      const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH);
 
       const hasAutoTable = typeof pdf.autoTable === 'function';
       const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
       const subLog = Array.isArray(state.subLog) ? state.subLog : [];
+      const margin = 36;
+
+      function drawLogHeading(title){
+        pdf.setFontSize(16); pdf.setTextColor(NAVY);
+        pdf.text(title, margin, 40);
+        pdf.setFontSize(10); pdf.setTextColor('#666666');
+        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), margin, 56);
+      }
+
+      let cursorY = null; // tracks where the last table finished, so we can pack
+                          // a second table onto the same page instead of wasting
+                          // a whole extra sheet of paper.
 
       if(shotLog.length){
-        pdf.addPage([W,H], 'landscape');
-        pdf.setFontSize(20); pdf.setTextColor(NAVY);
-        pdf.text('Shot-by-Shot Log', 40, 44);
-        pdf.setFontSize(11); pdf.setTextColor('#666666');
-        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), 40, 64);
+        pdf.addPage();
+        drawLogHeading('Shot-by-Shot Log');
 
         const rows = shotLog.map((s,i)=>[
           String(i+1),
@@ -2636,35 +2920,29 @@
         ]);
         if(hasAutoTable){
           pdf.autoTable({
-            startY: 80,
-            head: [['#','Team','Pos','Player','Quarter','Match Time (mm:ss)','Score After']],
+            startY: 70,
+            head: [['#','Team','Pos','Player','Quarter','Time (mm:ss)','Score']],
             body: rows,
-            margin: {left:40, right:40},
-            styles: {fontSize:10, cellPadding:5},
+            margin: {left:margin, right:margin},
+            styles: {fontSize:8, cellPadding:3},
             headStyles: {fillColor:[11,31,58], textColor:255},
-            didDrawPage: function(){
-              pdf.setFontSize(20); pdf.setTextColor(NAVY);
-            }
+            columnStyles: {0:{cellWidth:22}, 1:{cellWidth:100}, 2:{cellWidth:34}, 3:{cellWidth:120}, 4:{cellWidth:70}, 5:{cellWidth:65}, 6:{cellWidth:60}}
           });
+          cursorY = pdf.lastAutoTable.finalY;
         } else {
           // fallback: plain text listing if the table plugin failed to load
-          let ty = 90;
-          pdf.setFontSize(10); pdf.setTextColor('#111111');
+          let ty2 = 80;
+          pdf.setFontSize(9); pdf.setTextColor('#111111');
           rows.forEach(r=>{
-            if(ty > H-30){ pdf.addPage([W,H],'landscape'); ty = 40; }
-            pdf.text(r.join('   |   '), 40, ty);
-            ty += 18;
+            if(ty2 > pageH-40){ pdf.addPage(); ty2 = 40; }
+            pdf.text(r.join('  |  '), margin, ty2);
+            ty2 += 16;
           });
+          cursorY = ty2;
         }
       }
 
       if(subLog.length){
-        pdf.addPage([W,H], 'landscape');
-        pdf.setFontSize(20); pdf.setTextColor(NAVY);
-        pdf.text('Player Replace Log', 40, 44);
-        pdf.setFontSize(11); pdf.setTextColor('#666666');
-        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), 40, 64);
-
         const subRows = subLog.map((s,i)=>[
           String(i+1),
           s.team==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B'),
@@ -2674,22 +2952,40 @@
           s.segLabel || '',
           s.timeStr || ''
         ]);
+        // estimate space needed; only start a fresh page if it truly won't fit,
+        // so a short replacement log rides along under the shot log instead of
+        // burning an extra sheet.
+        const estimatedRows = subRows.length;
+        const estimatedHeight = 70 + estimatedRows * 16;
+        const roomLeft = cursorY!==null ? (pageH - margin - (cursorY + 70)) : (pageH - margin - 70);
+
+        if(cursorY!==null && roomLeft >= estimatedHeight){
+          pdf.setFontSize(16); pdf.setTextColor(NAVY);
+          pdf.text('Player Replace Log', margin, cursorY + 40);
+          var startY2 = cursorY + 56;
+        } else {
+          pdf.addPage();
+          drawLogHeading('Player Replace Log');
+          var startY2 = 70;
+        }
+
         if(hasAutoTable){
           pdf.autoTable({
-            startY: 80,
-            head: [['#','Team','Player Out','Player In','Pos','Quarter','Match Time (mm:ss)']],
+            startY: startY2,
+            head: [['#','Team','Player Out','Player In','Pos','Quarter','Time (mm:ss)']],
             body: subRows,
-            margin: {left:40, right:40},
-            styles: {fontSize:10, cellPadding:5},
-            headStyles: {fillColor:[11,31,58], textColor:255}
+            margin: {left:margin, right:margin},
+            styles: {fontSize:8, cellPadding:3},
+            headStyles: {fillColor:[11,31,58], textColor:255},
+            columnStyles: {0:{cellWidth:22}, 1:{cellWidth:100}, 2:{cellWidth:110}, 3:{cellWidth:110}, 4:{cellWidth:34}, 5:{cellWidth:70}, 6:{cellWidth:65}}
           });
         } else {
-          let ty = 90;
-          pdf.setFontSize(10); pdf.setTextColor('#111111');
+          let ty3 = startY2 + 10;
+          pdf.setFontSize(9); pdf.setTextColor('#111111');
           subRows.forEach(r=>{
-            if(ty > H-30){ pdf.addPage([W,H],'landscape'); ty = 40; }
-            pdf.text(r.join('   |   '), 40, ty);
-            ty += 18;
+            if(ty3 > pageH-40){ pdf.addPage(); ty3 = 40; }
+            pdf.text(r.join('  |  '), margin, ty3);
+            ty3 += 16;
           });
         }
       }
