@@ -2656,6 +2656,17 @@
     ctx.stroke();
   }
 
+  function computePositionBreakdown(state){
+    const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
+    const out = { A:{GS:0,GA:0}, B:{GS:0,GA:0} };
+    shotLog.forEach(s=>{
+      const side = s.team === 'B' ? 'B' : 'A';
+      if(s.position === 'GS') out[side].GS++;
+      else if(s.position === 'GA') out[side].GA++;
+    });
+    return out;
+  }
+
   function computeQuarterScores(state){
     const segments = Array.isArray(state.segments) ? state.segments : [];
     const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
@@ -2675,321 +2686,292 @@
     const state = localState;
     if(!state){ showToast('No match data to export yet'); return; }
     try{
-      // Portrait, A4-proportioned canvas (595.28 x 841.89 pt is A4 — we render at
-      // 2x that in pixels for crisp print, then scale into a true A4 PDF page so
-      // it prints on a single physical sheet instead of an odd custom size).
-      const W = 1191, H = 1684;
-      const canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
-      const ctx = canvas.getContext('2d');
-
-      const NAVY = '#0b1f3a', YELLOW = '#ffd400', RED = '#c41e24',
-            GREEN = '#159447', AMBER = '#f5a623', BLUE = '#29abe2', BG = '#ffffff',
-            HAIRLINE = 'rgba(11,31,58,0.18)';
-
-      // background
-      ctx.fillStyle = BG;
-      ctx.fillRect(0,0,W,H);
-
-      // formal outer border frame (double rule, like an official certificate)
-      ctx.strokeStyle = '#d4a94a'; ctx.lineWidth = 4;
-      ctx.strokeRect(18,18,W-36,H-36);
-      ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1.5;
-      ctx.strokeRect(28,28,W-56,H-56);
-
-      // top navy header band
-      ctx.fillStyle = NAVY;
-      ctx.fillRect(28,28,W-56,206);
-
-      // logos (best-effort — if a logo fails to load, just skip it)
-      const fedSrc = document.querySelector('#federationLogoBadge img') ? document.querySelector('#federationLogoBadge img').src : null;
-      const govtSrc = document.querySelector('#ministryLogoBadge img') ? document.querySelector('#ministryLogoBadge img').src : null;
-      try{
-        if(govtSrc){ const govtImg = await loadImageEl(govtSrc); drawCircularLogo(ctx, govtImg, 130, 118, 62); }
-      }catch(e){}
-      try{
-        if(fedSrc){ const fedImg = await loadImageEl(fedSrc); drawCircularLogo(ctx, fedImg, W-130, 118, 62); }
-      }catch(e){}
-
-      // tournament title + subtitle
-      ctx.textAlign = 'center';
-      ctx.fillStyle = YELLOW;
-      ctx.font = '700 34px Arial, sans-serif';
-      const tourneyName = state.tournamentName || 'National Netball Tournament';
-      wrapCenteredText(ctx, tourneyName, W/2, 78, 620, 38);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '600 20px Arial, sans-serif';
-      ctx.fillText('OFFICIAL MATCH SCORECARD', W/2, 140);
-      if(state.matchNumber){
-        ctx.font = '500 16px Arial, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillText(state.matchNumber, W/2, 168);
-      }
-      const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'});
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '500 15px Arial, sans-serif';
-      ctx.fillText(dateStr, W/2, 208);
-
-      // team names + scores
-      const scoreA = state.scoreA, scoreB = state.scoreB;
-      const winnerA = scoreA > scoreB, winnerB = scoreB > scoreA;
-
-      ctx.textAlign = 'center';
-      ctx.font = '700 32px Arial, sans-serif';
-      ctx.fillStyle = state.colorA || RED;
-      wrapCenteredText(ctx, (state.teamA||'TEAM A').toUpperCase(), W*0.25, 330, 400, 36);
-
-      ctx.fillStyle = state.colorB || GREEN;
-      wrapCenteredText(ctx, (state.teamB||'TEAM B').toUpperCase(), W*0.75, 330, 400, 36);
-
-      ctx.font = '900 150px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      ctx.fillText(String(scoreA), W*0.25, 500);
-      ctx.fillText(String(scoreB), W*0.75, 500);
-
-      ctx.font = '700 38px Arial, sans-serif';
-      ctx.fillStyle = AMBER;
-      ctx.fillText('VS', W/2, 470);
-
-      // winner tags
-      ctx.font = '700 17px Arial, sans-serif';
-      if(winnerA){
-        drawPill(ctx, W*0.25, 545, 'WINNER', GREEN);
-      } else if(winnerB){
-        drawPill(ctx, W*0.75, 545, 'WINNER', GREEN);
-      } else if(scoreA===scoreB){
-        drawPill(ctx, W/2, 545, 'DRAW', BLUE);
-      }
-
-      // divider
-      ctx.strokeStyle = HAIRLINE;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(80, 600);
-      ctx.lineTo(W-80, 600);
-      ctx.stroke();
-
-      // extra match facts
-      ctx.textAlign = 'left';
-      ctx.font = '600 17px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      let fy = 638;
-      const seg = currentSegment(state);
-      ctx.fillText('Result recorded at: ' + seg.label, 80, fy); fy += 30;
-      if(state.tossWinner === 'A'){ ctx.fillText('Toss won by: ' + state.teamA, 80, fy); fy += 30; }
-      else if(state.tossWinner === 'B'){ ctx.fillText('Toss won by: ' + state.teamB, 80, fy); fy += 30; }
-      if(state.nextTeamA || state.nextTeamB){
-        ctx.fillText('Next match: ' + (state.nextTeamA||'TBD') + ' vs ' + (state.nextTeamB||'TBD'), 80, fy); fy += 30;
-      }
-      fy += 14;
-
-      // ---- Team Points by Quarter (combined with the final score, formal table) ----
-      const quarterRows = computeQuarterScores(state);
-      ctx.font = '700 20px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      ctx.fillText('TEAM POINTS BY QUARTER', 80, fy);
-      fy += 14;
-
-      const tblX = 80, tblW = W - 160;
-      const colQ = tblW * 0.4, colA = tblW * 0.3, colB = tblW * 0.3;
-      const rowH = 42;
-      const headerH = 44;
-      let ty = fy + 16;
-
-      // header row
-      ctx.fillStyle = NAVY;
-      ctx.fillRect(tblX, ty, tblW, headerH);
-      ctx.font = '700 16px Arial, sans-serif';
-      ctx.fillStyle = YELLOW;
-      ctx.textAlign = 'left';
-      ctx.fillText('QUARTER', tblX + 18, ty + headerH/2 + 6);
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText((state.teamA||'TEAM A').toUpperCase(), tblX + colQ + colA/2, ty + headerH/2 + 6);
-      ctx.fillText((state.teamB||'TEAM B').toUpperCase(), tblX + colQ + colA + colB/2, ty + headerH/2 + 6);
-      ty += headerH;
-
-      quarterRows.forEach((row, idx)=>{
-        ctx.fillStyle = idx % 2 === 0 ? '#ffffff' : 'rgba(11,31,58,0.04)';
-        ctx.fillRect(tblX, ty, tblW, rowH);
-        ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1;
-        ctx.strokeRect(tblX, ty, tblW, rowH);
-        ctx.font = '600 16px Arial, sans-serif';
-        ctx.fillStyle = NAVY;
-        ctx.textAlign = 'left';
-        ctx.fillText(row.label, tblX + 18, ty + rowH/2 + 6);
-        ctx.font = '700 17px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(String(row.scoreA), tblX + colQ + colA/2, ty + rowH/2 + 6);
-        ctx.fillText(String(row.scoreB), tblX + colQ + colA + colB/2, ty + rowH/2 + 6);
-        ty += rowH;
-      });
-
-      // final row, highlighted
-      ctx.fillStyle = '#fff7e0';
-      ctx.fillRect(tblX, ty, tblW, rowH + 6);
-      ctx.strokeStyle = '#d4a94a'; ctx.lineWidth = 2;
-      ctx.strokeRect(tblX, ty, tblW, rowH + 6);
-      ctx.font = '700 17px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      ctx.textAlign = 'left';
-      ctx.fillText('FINAL SCORE', tblX + 18, ty + (rowH+6)/2 + 6);
-      ctx.font = '900 20px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(String(scoreA), tblX + colQ + colA/2, ty + (rowH+6)/2 + 7);
-      ctx.fillText(String(scoreB), tblX + colQ + colA + colB/2, ty + (rowH+6)/2 + 7);
-      ty += rowH + 6;
-
-      // outer table border
-      ctx.strokeStyle = NAVY; ctx.lineWidth = 2;
-      ctx.strokeRect(tblX, fy + 16, tblW, ty - (fy + 16));
-
-      // ---- Match officials signatures (formal sign-off) ----
-      let sy = ty + 70;
-      ctx.textAlign = 'left';
-      ctx.font = '700 18px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      ctx.fillText('MATCH OFFICIALS', 80, sy);
-      sy += 44;
-
-      function signatureLine(label, x, y, w){
-        ctx.strokeStyle = HAIRLINE; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
-        ctx.font = '500 13px Arial, sans-serif';
-        ctx.fillStyle = 'rgba(11,31,58,0.6)';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, x, y + 22);
-      }
-      const sigColW = (W - 160 - 40) / 2;
-      signatureLine('Umpire 1 — Name & Signature', 80, sy, sigColW);
-      signatureLine('Umpire 2 — Name & Signature', 80 + sigColW + 40, sy, sigColW);
-      sy += 66;
-      signatureLine('Scorer — Name & Signature', 80, sy, sigColW);
-      signatureLine('Table Official — Name & Signature', 80 + sigColW + 40, sy, sigColW);
-
-      // footer
-      ctx.textAlign = 'center';
-      ctx.font = '500 14px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(11,31,58,0.45)';
-      ctx.fillText('Generated by the Netball Live Scoreboard — Government of Sri Lanka / Netball Federation of Sri Lanka', W/2, H-46);
-
-      const imgData = canvas.toDataURL('image/png');
-      const safeA = (state.teamA||'TeamA').replace(/[^a-z0-9]+/gi,'_');
-      const safeB = (state.teamB||'TeamB').replace(/[^a-z0-9]+/gi,'_');
-
       if(typeof window.jspdf === 'undefined'){
-        showToast('PDF library failed to load — check your connection');
+        showToast('PDF library failed to load - check your connection');
         return;
       }
       const { jsPDF } = window.jspdf;
-      // True A4 portrait page — prints cleanly on one physical sheet instead of
-      // the old custom pixel-sized landscape page.
       const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH);
+      const margin = 42;
 
-      const hasAutoTable = typeof pdf.autoTable === 'function';
-      const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
-      const subLog = Array.isArray(state.subLog) ? state.subLog : [];
-      const margin = 36;
+      const BLACK = [17,17,17], GRAY = [110,110,110], HEAD_BLUE = [26,82,138],
+            GREEN = [21,148,71], BLUE = [41,171,226], HEAD_FILL = [240,240,240],
+            LINE_GRAY = [205,205,205];
 
-      function drawLogHeading(title){
-        pdf.setFontSize(16); pdf.setTextColor(NAVY);
-        pdf.text(title, margin, 40);
-        pdf.setFontSize(10); pdf.setTextColor('#666666');
-        pdf.text((state.teamA||'Team A') + ' vs ' + (state.teamB||'Team B'), margin, 56);
+      // keep a heading from being stranded right at the bottom of a page --
+      // jump to a fresh page if there isn't enough room left for it
+      function ensureSpace(y, needed){
+        if(y + needed > pageH - margin - 34){
+          pdf.addPage();
+          return margin;
+        }
+        return y;
       }
 
-      let cursorY = null; // tracks where the last table finished, so we can pack
-                          // a second table onto the same page instead of wasting
-                          // a whole extra sheet of paper.
+      let y = margin;
+      const headStartY = y;
 
-      if(shotLog.length){
-        pdf.addPage();
-        drawLogHeading('Shot-by-Shot Log');
+      // ---- crests / logos (ministry on the left, federation on the right) ----
+      const fedSrc = document.querySelector('#federationLogoBadge img') ? document.querySelector('#federationLogoBadge img').src : null;
+      const govtSrc = document.querySelector('#ministryLogoBadge img') ? document.querySelector('#ministryLogoBadge img').src : null;
+      const logoH = 40;
+      let logoBottomY = y;
+      if(govtSrc){
+        try{
+          const img = await loadImageEl(govtSrc);
+          const logoW = logoH * ((img.width && img.height) ? (img.width / img.height) : 1);
+          pdf.addImage(img, 'PNG', margin, headStartY, logoW, logoH);
+          logoBottomY = Math.max(logoBottomY, headStartY + logoH);
+        }catch(e){ /* no logo available - skip it, not fatal */ }
+      }
+      if(fedSrc){
+        try{
+          const img = await loadImageEl(fedSrc);
+          const logoW = logoH * ((img.width && img.height) ? (img.width / img.height) : 1);
+          pdf.addImage(img, 'PNG', pageW - margin - logoW, headStartY, logoW, logoH);
+          logoBottomY = Math.max(logoBottomY, headStartY + logoH);
+        }catch(e){ /* no logo available - skip it, not fatal */ }
+      }
+      if(govtSrc || fedSrc){ y = logoBottomY + 8; }
 
-        const rows = shotLog.map((s,i)=>[
+      // ---- title block ----
+      pdf.setTextColor.apply(pdf, BLACK);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(14);
+      const tourneyName = (state.tournamentName || 'National Netball Tournament').toUpperCase();
+      pdf.text(tourneyName, pageW/2, y, {align:'center'});
+      y += 15;
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(9);
+      pdf.text('OFFICIAL MATCH SCORECARD', pageW/2, y, {align:'center'});
+      y += 12;
+      if(state.matchNumber){
+        pdf.setFontSize(8);
+        pdf.setTextColor.apply(pdf, GRAY);
+        pdf.text(String(state.matchNumber), pageW/2, y, {align:'center'});
+        y += 11;
+      }
+      const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'});
+      pdf.setTextColor.apply(pdf, GRAY);
+      pdf.setFontSize(8);
+      pdf.text(dateStr, pageW/2, y, {align:'center'});
+      y += 14;
+
+      pdf.setDrawColor(0,0,0);
+      pdf.setLineWidth(1);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 22;
+
+      // ---- team names, big scores, GS/GA split, winner tag ----
+      const scoreA = state.scoreA || 0, scoreB = state.scoreB || 0;
+      const winnerA = scoreA > scoreB, winnerB = scoreB > scoreA;
+      const half = (pageW - margin*2)/2;
+      const cxA = margin + half/2;
+      const cxB = margin + half + half/2;
+
+      pdf.setTextColor.apply(pdf, BLACK);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(13);
+      pdf.text((state.teamA||'TEAM A').toUpperCase(), cxA, y, {align:'center'});
+      pdf.text((state.teamB||'TEAM B').toUpperCase(), cxB, y, {align:'center'});
+      y += 32;
+
+      pdf.setFontSize(30);
+      pdf.text(String(scoreA), cxA, y, {align:'center'});
+      pdf.text(String(scoreB), cxB, y, {align:'center'});
+      pdf.setTextColor.apply(pdf, GRAY);
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(10);
+      pdf.text('VS', pageW/2, y - 9, {align:'center'});
+      y += 14;
+
+      const posBreak = computePositionBreakdown(state);
+      pdf.setFontSize(8);
+      pdf.setTextColor.apply(pdf, GRAY);
+      pdf.text('GS ' + posBreak.A.GS + ' \u00b7 GA ' + posBreak.A.GA, cxA, y, {align:'center'});
+      pdf.text('GS ' + posBreak.B.GS + ' \u00b7 GA ' + posBreak.B.GA, cxB, y, {align:'center'});
+      y += 13;
+
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(9);
+      if(winnerA){
+        pdf.setTextColor.apply(pdf, GREEN);
+        pdf.text('WINNER', cxA, y, {align:'center'});
+      } else if(winnerB){
+        pdf.setTextColor.apply(pdf, GREEN);
+        pdf.text('WINNER', cxB, y, {align:'center'});
+      } else if(scoreA===scoreB){
+        pdf.setTextColor.apply(pdf, BLUE);
+        pdf.text('DRAW', pageW/2, y, {align:'center'});
+      }
+      y += 16;
+
+      // ---- result / toss facts row ----
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor.apply(pdf, BLACK);
+      const seg = currentSegment(state);
+      pdf.text('Result recorded at: ' + seg.label, margin, y);
+      if(state.tossWinner === 'A'){ pdf.text('Toss won by: ' + state.teamA, pageW - margin, y, {align:'right'}); }
+      else if(state.tossWinner === 'B'){ pdf.text('Toss won by: ' + state.teamB, pageW - margin, y, {align:'right'}); }
+      if(state.nextTeamA || state.nextTeamB){
+        y += 12;
+        pdf.text('Next match: ' + (state.nextTeamA||'TBD') + ' vs ' + (state.nextTeamB||'TBD'), margin, y);
+      }
+      y += 16;
+
+      // ---- team rosters (side by side) ----
+      const rosterA = Array.isArray(state.rosterA) ? state.rosterA : [];
+      const rosterB = Array.isArray(state.rosterB) ? state.rosterB : [];
+
+      y = ensureSpace(y, 60);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor.apply(pdf, HEAD_BLUE);
+      pdf.text('Team Rosters', margin, y);
+      y += 13;
+
+      const colGap = 20;
+      const colW = (pageW - margin*2 - colGap)/2;
+      const rosterHeadY = y;
+
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor.apply(pdf, BLACK);
+      pdf.text((state.teamA||'TEAM A').toUpperCase(), margin, rosterHeadY);
+      pdf.text((state.teamB||'TEAM B').toUpperCase(), margin + colW + colGap, rosterHeadY);
+
+      const rosterRow = p => [
+        (p.number!=null && p.number!=='') ? String(p.number) : '\u2014',
+        p.name || '',
+        p.position || '',
+        p.status || 'active'
+      ];
+      const rosterTableOpts = {
+        head: [['','Name','Pos','Status']],
+        headStyles: { fillColor: HEAD_FILL, textColor: BLACK, fontStyle:'bold', fontSize:8.5 },
+        styles: { fontSize:8.5, cellPadding:4, lineColor: LINE_GRAY, lineWidth:0.5, textColor: BLACK },
+        theme: 'grid'
+      };
+
+      pdf.autoTable(Object.assign({}, rosterTableOpts, {
+        startY: rosterHeadY + 8,
+        margin: { left: margin, right: pageW - margin - colW },
+        tableWidth: colW,
+        body: rosterA.map(rosterRow)
+      }));
+      const rosterAEndY = pdf.lastAutoTable.finalY;
+
+      pdf.autoTable(Object.assign({}, rosterTableOpts, {
+        startY: rosterHeadY + 8,
+        margin: { left: margin + colW + colGap, right: margin },
+        tableWidth: colW,
+        body: rosterB.map(rosterRow)
+      }));
+      const rosterBEndY = pdf.lastAutoTable.finalY;
+
+      y = Math.max(rosterAEndY, rosterBEndY) + 14;
+
+      // ---- scoring log ----
+      const shotLog = Array.isArray(state.shotLog) ? state.shotLog : [];
+      y = ensureSpace(y, 60);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor.apply(pdf, HEAD_BLUE);
+      pdf.text('Scoring Log', margin, y);
+      y += 10;
+
+      pdf.autoTable({
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['','Team','Player','Pts','Quarter','Time','Score']],
+        body: shotLog.map((s,i)=>[
           String(i+1),
-          s.teamName || (s.team==='A'?state.teamA:state.teamB) || '',
-          s.position || '',
-          s.scorerName || '—',
+          s.teamName || (s.team==='A' ? state.teamA : state.teamB) || '',
+          s.scorerName || '\u2014',
+          '+1',
           s.segLabel || '',
           s.timeStr || '',
           s.scoreAAfter + ' - ' + s.scoreBAfter
-        ]);
-        if(hasAutoTable){
-          pdf.autoTable({
-            startY: 70,
-            head: [['#','Team','Pos','Player','Quarter','Time (mm:ss)','Score']],
-            body: rows,
-            margin: {left:margin, right:margin},
-            styles: {fontSize:8, cellPadding:3},
-            headStyles: {fillColor:[11,31,58], textColor:255},
-            columnStyles: {0:{cellWidth:22}, 1:{cellWidth:100}, 2:{cellWidth:34}, 3:{cellWidth:120}, 4:{cellWidth:70}, 5:{cellWidth:65}, 6:{cellWidth:60}}
-          });
-          cursorY = pdf.lastAutoTable.finalY;
-        } else {
-          // fallback: plain text listing if the table plugin failed to load
-          let ty2 = 80;
-          pdf.setFontSize(9); pdf.setTextColor('#111111');
-          rows.forEach(r=>{
-            if(ty2 > pageH-40){ pdf.addPage(); ty2 = 40; }
-            pdf.text(r.join('  |  '), margin, ty2);
-            ty2 += 16;
-          });
-          cursorY = ty2;
-        }
-      }
+        ]),
+        headStyles: { fillColor: HEAD_FILL, textColor: BLACK, fontStyle:'bold', fontSize:8.5 },
+        styles: { fontSize:8.5, cellPadding:4, lineColor: LINE_GRAY, lineWidth:0.5, textColor: BLACK },
+        theme: 'grid',
+        columnStyles: { 0:{cellWidth:24}, 3:{cellWidth:32}, 4:{cellWidth:64}, 5:{cellWidth:60}, 6:{cellWidth:56} }
+      });
+      y = pdf.lastAutoTable.finalY + 14;
 
+      // ---- player replacement log ----
+      const subLog = Array.isArray(state.subLog) ? state.subLog : [];
       if(subLog.length){
-        const subRows = subLog.map((s,i)=>[
-          String(i+1),
-          s.team==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B'),
-          '#'+(s.outNumber||'—')+' '+(s.outName||''),
-          '#'+(s.inNumber||'—')+' '+(s.inName||''),
-          s.position || '',
-          s.segLabel || '',
-          s.timeStr || ''
-        ]);
-        // estimate space needed; only start a fresh page if it truly won't fit,
-        // so a short replacement log rides along under the shot log instead of
-        // burning an extra sheet.
-        const estimatedRows = subRows.length;
-        const estimatedHeight = 70 + estimatedRows * 16;
-        const roomLeft = cursorY!==null ? (pageH - margin - (cursorY + 70)) : (pageH - margin - 70);
+        y = ensureSpace(y, 60);
+        pdf.setFont('helvetica','bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor.apply(pdf, HEAD_BLUE);
+        pdf.text('Player Replacement Log', margin, y);
+        y += 10;
 
-        if(cursorY!==null && roomLeft >= estimatedHeight){
-          pdf.setFontSize(16); pdf.setTextColor(NAVY);
-          pdf.text('Player Replace Log', margin, cursorY + 40);
-          var startY2 = cursorY + 56;
-        } else {
-          pdf.addPage();
-          drawLogHeading('Player Replace Log');
-          var startY2 = 70;
-        }
-
-        if(hasAutoTable){
-          pdf.autoTable({
-            startY: startY2,
-            head: [['#','Team','Player Out','Player In','Pos','Quarter','Time (mm:ss)']],
-            body: subRows,
-            margin: {left:margin, right:margin},
-            styles: {fontSize:8, cellPadding:3},
-            headStyles: {fillColor:[11,31,58], textColor:255},
-            columnStyles: {0:{cellWidth:22}, 1:{cellWidth:100}, 2:{cellWidth:110}, 3:{cellWidth:110}, 4:{cellWidth:34}, 5:{cellWidth:70}, 6:{cellWidth:65}}
-          });
-        } else {
-          let ty3 = startY2 + 10;
-          pdf.setFontSize(9); pdf.setTextColor('#111111');
-          subRows.forEach(r=>{
-            if(ty3 > pageH-40){ pdf.addPage(); ty3 = 40; }
-            pdf.text(r.join('  |  '), margin, ty3);
-            ty3 += 16;
-          });
-        }
+        pdf.autoTable({
+          startY: y,
+          margin: { left: margin, right: margin },
+          head: [['','Team','Out','In','Pos','Qtr','Time']],
+          body: subLog.map((s,i)=>[
+            String(i+1),
+            s.team==='A' ? (state.teamA||'Team A') : (state.teamB||'Team B'),
+            '#'+(s.outNumber||'\u2014')+' '+(s.outName||''),
+            '#'+(s.inNumber||'\u2014')+' '+(s.inName||''),
+            s.position || '',
+            s.segLabel || '',
+            s.timeStr || ''
+          ]),
+          headStyles: { fillColor: HEAD_FILL, textColor: BLACK, fontStyle:'bold', fontSize:8.5 },
+          styles: { fontSize:8.5, cellPadding:4, lineColor: LINE_GRAY, lineWidth:0.5, textColor: BLACK },
+          theme: 'grid',
+          columnStyles: { 0:{cellWidth:22}, 4:{cellWidth:34}, 5:{cellWidth:64}, 6:{cellWidth:56} }
+        });
+        y = pdf.lastAutoTable.finalY + 14;
       }
 
+      // ---- match officials sign-off -- always its own page, like the paper original ----
+      pdf.addPage();
+      let sy = margin + 16;
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor.apply(pdf, BLACK);
+      pdf.text('Match Officials', margin, sy);
+      sy += 36;
+
+      function signatureLine(label, x, lineY, w){
+        pdf.setDrawColor.apply(pdf, LINE_GRAY);
+        pdf.setLineWidth(0.75);
+        pdf.line(x, lineY, x + w, lineY);
+        pdf.setFont('helvetica','normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor.apply(pdf, GRAY);
+        pdf.text(label, x, lineY + 14);
+      }
+      const sigColW = (pageW - margin*2 - 40) / 2;
+      signatureLine('Umpire 1 - Name & Signature', margin, sy, sigColW);
+      signatureLine('Umpire 2 - Name & Signature', margin + sigColW + 40, sy, sigColW);
+      sy += 56;
+      signatureLine('Scorer - Name & Signature', margin, sy, sigColW);
+      signatureLine('Table Official - Name & Signature', margin + sigColW + 40, sy, sigColW);
+
+      // ---- footer + page numbers on every page ----
+      const totalPages = pdf.internal.getNumberOfPages();
+      for(let p=1; p<=totalPages; p++){
+        pdf.setPage(p);
+        pdf.setFont('helvetica','normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor.apply(pdf, GRAY);
+        pdf.text('Generated by the National Netball Tournament Live Scoreboard - SL Netball Tournament System', margin, pageH - 24);
+        pdf.text('Page ' + p + ' of ' + totalPages, pageW - margin, pageH - 24, {align:'right'});
+      }
+
+      const safeA = (state.teamA||'TeamA').replace(/[^a-z0-9]+/gi,'_');
+      const safeB = (state.teamB||'TeamB').replace(/[^a-z0-9]+/gi,'_');
       pdf.save('scorecard_' + safeA + '_vs_' + safeB + '.pdf');
       showToast('PDF scorecard downloaded');
     }catch(e){
