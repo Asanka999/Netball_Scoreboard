@@ -592,6 +592,111 @@
   @media (prefers-reduced-motion: reduce){
     * { animation-duration: 0.01ms !important; }
   }
+
+  /* ================= RESPONSIVE DISPLAY SCALING (laptop + LED) =================
+     Everything on the Main Display is sized with vh / vw units, so logos, fonts and
+     boxes scale with the actual screen and the whole board fits in one screen
+     with no scrolling - on a laptop, a Full-HD LED wall or an ultra-wide panel. */
+  #displayView{ height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+  #displayView .topbar{ padding:1vh 2vw; flex:0 0 auto; }
+  #displayView .logo-slot{ width:25vw; flex:0 0 25vw; gap:1vw; min-width:0; }
+  #displayView .logo-badge{
+    width:min(14vh,11vw); height:min(14vh,11vw); flex-shrink:0; border-width:max(2px,.25vh);
+  }
+  #displayView .logo-badge.has-img{ padding:min(.7vh,.5vw); }
+  #displayView .logo-label{ font-size:min(2.6vh,1.6vw); line-height:1.2; }
+  #displayView .logo-label b{ font-size:min(3vh,1.9vw); }
+  #displayView .tourney-title{ font-size:min(4.4vh,3vw); letter-spacing:.06em; line-height:1.1; }
+  #displayView .match-no{ font-size:min(2vh,1.4vw); margin-top:.4vh; }
+  #displayView .toss-badge{ font-size:min(1.8vh,1.3vw); margin-top:.3vh; }
+  #displayView .code-pill{ font-size:min(1.6vh,1.2vw); margin-top:.3vh; }
+  #displayView .code-pill b{ font-size:min(2vh,1.5vw); }
+
+  #displayView .scoreboard-main{
+    min-height:0; gap:1vh; padding:1.2vh 2vw; justify-content:space-evenly; overflow:hidden;
+  }
+  #displayView .main-timer-box{
+    width:auto; min-width:min(55vw,70vh); padding:.5vh 3vw; border-width:max(3px,.5vh); border-radius:2.2vh;
+  }
+  #displayView .timer-text-big{ font-size:min(10.5vh,7.5vw); }
+  #displayView .timeout-box{
+    width:auto; min-width:min(40vw,60vh); padding:.6vh 2.5vw; margin-top:0;
+    border-width:max(3px,.4vh); border-radius:2vh;
+  }
+  #displayView .timeout-box-label{ font-size:min(1.9vh,1.5vw); }
+  #displayView .timeout-box-value{ font-size:min(5vh,3.6vw); }
+
+  #displayView .mid-row, #displayView .bottom-row{
+    flex-wrap:nowrap; gap:1vw; width:100%; justify-content:center;
+  }
+  #displayView .team-name-col{
+    width:35vw; min-width:0; max-width:35vw; line-height:1.02;
+  }
+  #displayView .score-col{
+    width:35vw; min-width:0; font-size:min(18vh,13vw); line-height:1;
+  }
+  #displayView .centerpass-col{ gap:1.5vw; }
+  #displayView .arrow-svg{ width:min(7vh,5vw); height:min(7vh,5vw); }
+  #displayView .period-num-box{
+    width:min(10vh,7vw); height:min(10vh,7vw); font-size:min(5vh,3.6vw);
+    border-width:max(3px,.4vh); border-radius:1.6vh;
+  }
+  #displayView .seg-label-box{
+    min-width:0; width:auto; padding:1.4vh 2vw; font-size:min(4.2vh,2.8vw);
+    border-width:max(2px,.3vh); border-radius:1.6vh;
+  }
+  #displayView .last-scorer-bar{
+    width:min(70vw,120vh); padding:.8vh 2vw; font-size:min(2.6vh,1.9vw); border-radius:1.6vh;
+  }
+  #displayView .last-scorer-bar .tag{ font-size:min(1.4vh,1vw); }
+  #displayView .next-match-bar{ flex:0 0 auto; padding:.9vh 2vw; font-size:min(2.6vh,1.9vw); }
+  #displayView .bottombar{ flex:0 0 auto; padding:.7vh; font-size:min(1.6vh,1.1vw); }
+
+  /* small on-screen buttons stay out of the way on the big LED */
+  #displayView .fab-row{ bottom:1.5vh; right:1.5vw; gap:.8vh; opacity:.3; transition:opacity .2s; }
+  #displayView .fab-row:hover{ opacity:1; }
+  #displayView .fab{ padding:.8vh 1.2vw; font-size:min(1.8vh,1.3vw); }
+
+  /* ================= SQUARE SCREEN MODE (e.g. 10x10 LED, aspect ~1:1) =================
+     On a square panel the width is no bigger than the height, so the wide-screen sizes
+     leave a lot of unused space. These rules scale every element up to fill the square. */
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView{ --name-scale:1.1; }
+    #displayView .topbar{ padding:1vh 2vw; }
+    #displayView .logo-slot{ width:25vw; flex:0 0 25vw; }
+    #displayView .logo-badge{ width:13vw; height:13vw; }
+    #displayView .logo-label{ font-size:1.7vw; }
+    #displayView .logo-label b{ font-size:2vw; }
+    #displayView .tourney-title{ font-size:3.4vw; }
+    #displayView .match-no{ font-size:2.4vw; }
+    #displayView .toss-badge{ font-size:2.1vw; }
+    #displayView .code-pill{ font-size:2vw; }
+    #displayView .code-pill b{ font-size:2.6vw; }
+
+    #displayView .scoreboard-main{ gap:1vh; padding:.8vh 2vw; }
+    #displayView .main-timer-box{ min-width:62vw; padding:.4vh 3vw; }
+    #displayView .timer-text-big{ font-size:min(11vh,16vw); }
+    #displayView .timeout-box{ min-width:56vw; padding:.4vh 2vw; }
+    #displayView .timeout-box-label{ font-size:2.4vw; }
+    #displayView .timeout-box-value{ font-size:min(5vh,7vw); }
+
+    #displayView .mid-row, #displayView .bottom-row{ gap:1vw; }
+    #displayView .team-name-col{ width:38vw; max-width:38vw; }
+    #displayView .centerpass-col{ gap:.5vw; width:18vw; justify-content:center; }
+    #displayView .arrow-svg{ width:4.5vw; height:4.5vw; }
+    #displayView .period-num-box{ width:8vw; height:8vw; font-size:4.4vw; }
+    #displayView .score-col{ width:38vw; font-size:min(17vh,22vw); }
+    #displayView .seg-label-box{ width:18vw; padding:1vh .6vw; font-size:2.8vw; text-align:center; }
+
+    #displayView .last-scorer-bar{ width:88vw; padding:.5vh 2vw; font-size:3vw; }
+    #displayView .last-scorer-bar .tag{ font-size:1.9vw; }
+    #displayView .next-match-bar{ font-size:3.2vw; padding:.8vh 2vw; }
+    #displayView .bottombar{ font-size:1.8vw; }
+    #displayView .fab{ font-size:1.8vw; padding:.8vh 1.6vw; }
+  }
+
+  /* wider gap between the score digits (text-indent keeps the number visually centred) */
+  #displayView .score-col{ letter-spacing:.08em; text-indent:.08em; }
 </style>
 </head>
 <body>
@@ -1335,11 +1440,14 @@
   }
 
   function fitNameFontSize(text){
-    const len = Math.max((text||'').length, 4);
-    const maxPx = Math.max(18, Math.min(34, Math.round(560/len)));
-    const minPx = Math.max(13, Math.min(20, maxPx-9));
-    const vw = (maxPx*0.11).toFixed(1);
-    return 'clamp('+minPx+'px, '+vw+'vw, '+maxPx+'px)';
+    // Team-name font scales with the screen (vh / vw) and is sized so the name fits in at most 2 lines.
+    const t = (text||'').trim();
+    const len = Math.max(t.length, 4);
+    const longest = Math.max.apply(null, t.split(/\s+/).map(w=>w.length).concat([4]));
+    const perLine = Math.max(longest, Math.ceil(len/2)+1);
+    const vw = Math.max(2.2, Math.min(7.5, 35/(0.6*perLine))).toFixed(2);
+    const vh = Math.max(3.5, Math.min(9.5, 70/perLine*1.0)).toFixed(2);
+    return 'calc(min(' + vh + 'vh, ' + vw + 'vw) * var(--name-scale, 1))';
   }
 
   let toastTimeout=null;
@@ -1546,8 +1654,8 @@
       document.getElementById('dispTeamB').style.fontSize = fitNameFontSize(state.teamB);
       document.getElementById('dispTeamA').style.color = state.colorA;
       document.getElementById('dispTeamB').style.color = state.colorB;
-      document.getElementById('dispScoreA').textContent = state.scoreA;
-      document.getElementById('dispScoreB').textContent = state.scoreB;
+      document.getElementById('dispScoreA').textContent = String(state.scoreA).padStart(2,'0');
+      document.getElementById('dispScoreB').textContent = String(state.scoreB).padStart(2,'0');
       document.getElementById('dispScoreA').style.color = state.colorA;
       document.getElementById('dispScoreB').style.color = state.colorB;
       document.getElementById('dispSegLabel').textContent = seg.label.toUpperCase();
