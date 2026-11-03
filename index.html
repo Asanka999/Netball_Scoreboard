@@ -697,6 +697,145 @@
 
   /* wider gap between the score digits (text-indent keeps the number visually centred) */
   #displayView .score-col{ letter-spacing:.08em; text-indent:.08em; }
+
+  /* ================= SIZE BUMP (+10%) — footer & next-match bar made slimmer to make room ================= */
+  #displayView{ --name-scale:1.1; }
+  #displayView .logo-badge{ width:min(15.5vh,12vw); height:min(15.5vh,12vw); }
+  #displayView .logo-label{ font-size:min(2.9vh,1.75vw); }
+  #displayView .logo-label b{ font-size:min(3.3vh,2.1vw); }
+  #displayView .tourney-title{ font-size:min(4.8vh,3.3vw); }
+  #displayView .match-no{ font-size:min(2.2vh,1.5vw); }
+  #displayView .toss-badge{ font-size:min(2vh,1.4vw); }
+  #displayView .code-pill{ font-size:min(1.8vh,1.3vw); }
+  #displayView .code-pill b{ font-size:min(2.2vh,1.65vw); }
+  #displayView .scoreboard-main{ gap:.6vh; padding:.6vh 2vw; }
+  #displayView .timer-text-big{ font-size:min(11.5vh,8.2vw); }
+  #displayView .timeout-box-label{ font-size:min(2.1vh,1.65vw); }
+  #displayView .timeout-box-value{ font-size:min(5.5vh,4vw); }
+  #displayView .arrow-svg{ width:min(7.7vh,5.5vw); height:min(7.7vh,5.5vw); }
+  #displayView .period-num-box{ width:min(11vh,7.7vw); height:min(11vh,7.7vw); font-size:min(5.5vh,4vw); }
+  #displayView .seg-label-box{ font-size:min(4.6vh,3.1vw); }
+  #displayView .score-col{ font-size:min(19.8vh,14.3vw); }
+  #displayView .last-scorer-bar{ font-size:min(2.9vh,2.1vw); padding:.5vh 2vw; }
+  #displayView .last-scorer-bar .tag{ font-size:min(1.55vh,1.1vw); }
+  #displayView .next-match-bar{ font-size:min(2.2vh,1.6vw); padding:.4vh 2vw; }
+  #displayView .bottombar{ font-size:min(1.3vh,.95vw); padding:.3vh; }
+
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView{ --name-scale:1.2; }
+    #displayView .logo-slot{ width:26vw; flex:0 0 26vw; }
+    #displayView .logo-badge{ width:14.3vw; height:14.3vw; }
+    #displayView .logo-label{ font-size:1.9vw; }
+    #displayView .logo-label b{ font-size:2.2vw; }
+    #displayView .tourney-title{ font-size:3.4vw; }
+    #displayView .match-no{ font-size:2.6vw; }
+    #displayView .toss-badge{ font-size:2.3vw; }
+    #displayView .code-pill{ font-size:2.2vw; }
+    #displayView .code-pill b{ font-size:2.9vw; }
+    #displayView .timer-text-big{ font-size:min(12vh,17.6vw); }
+    #displayView .timeout-box-label{ font-size:2.6vw; }
+    #displayView .timeout-box-value{ font-size:min(5.5vh,7.7vw); }
+    #displayView .centerpass-col{ width:19vw; }
+    #displayView .arrow-svg{ width:5vw; height:5vw; }
+    #displayView .period-num-box{ width:8.8vw; height:8.8vw; font-size:4.8vw; }
+    #displayView .score-col{ font-size:min(18.7vh,24vw); }
+    #displayView .seg-label-box{ width:19vw; font-size:3.1vw; }
+    #displayView .last-scorer-bar{ font-size:3.3vw; }
+    #displayView .last-scorer-bar .tag{ font-size:2vw; }
+    #displayView .next-match-bar{ font-size:2.8vw; padding:.4vh 2vw; }
+    #displayView .bottombar{ font-size:1.5vw; }
+  }
+
+  /* ================= LOGOS: transparent (no white badge) and +25% bigger ================= */
+  #displayView .logo-badge, #displayView .logo-badge.has-img{
+    background:transparent !important; border:0 !important; padding:0 !important; border-radius:0 !important;
+    width:min(19.4vh,15vw); height:min(19.4vh,15vw);
+  }
+  #displayView .logo-badge img{ border-radius:0; object-fit:contain; }
+  #displayView .topbar{ padding:.5vh 2vw; }
+  #displayView .logo-slot{ width:27vw; flex:0 0 27vw; }
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView .logo-badge, #displayView .logo-badge.has-img{ width:17.9vw; height:17.9vw; }
+    #displayView .logo-slot{ width:29vw; flex:0 0 29vw; }
+  }
+
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView{ --name-scale:1.08; }
+    #displayView .timer-text-big{ font-size:min(10vh,15vw); }
+    #displayView .timeout-box-label{ font-size:2.2vw; }
+    #displayView .timeout-box-value{ font-size:min(4.6vh,6.4vw); }
+    #displayView .score-col{ font-size:min(16.5vh,22vw); }
+    #displayView .period-num-box{ width:8vw; height:8vw; font-size:4.3vw; }
+    #displayView .scoreboard-main{ gap:.3vh; }
+  }
+
+  /* ================= UPDATE: bigger team names, timer, logos & quarter number ================= */
+  #displayView{ --name-scale:1.28; }
+  #displayView .team-name-col{ letter-spacing:.09em; }
+  #displayView .timer-text-big{ font-size:min(13vh,9.3vw); letter-spacing:.03em; }
+  #displayView .logo-badge, #displayView .logo-badge.has-img{ width:min(22vh,16.8vw); height:min(22vh,16.8vw); }
+  #displayView .logo-slot{ width:29vw; flex:0 0 29vw; }
+  #displayView .period-num-box{ width:min(12.5vh,8.8vw); height:min(12.5vh,8.8vw); font-size:min(8.2vh,6vw); line-height:1; }
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView{ --name-scale:1.2; }
+    #displayView .timer-text-big{ font-size:min(11.2vh,17vw); }
+    #displayView .logo-badge, #displayView .logo-badge.has-img{ width:19.5vw; height:19.5vw; }
+    #displayView .logo-slot{ width:31vw; flex:0 0 31vw; }
+    #displayView .period-num-box{ width:10vw; height:10vw; font-size:7vw; }
+  }
+
+  /* ================= UPDATE: stop watch + interval/timeout countdown in red ================= */
+  #displayView .timer-text-big.running,
+  #displayView .timer-text-big.paused,
+  #displayView .timer-text-big.done{ color:#ff2a2a; }
+  #displayView .timeout-box-label,
+  #displayView .timeout-box-value{ color:#e01010; }
+  html[data-theme="light"] #displayView .timer-text-big.running,
+  html[data-theme="light"] #displayView .timer-text-big.paused,
+  html[data-theme="light"] #displayView .timer-text-big.done{ color:#d0021b; }
+  html[data-theme="light"] #displayView .timeout-box-label,
+  html[data-theme="light"] #displayView .timeout-box-value{ color:#d0021b; }
+
+  /* ================= UPDATE: yellow instead of red (red is reserved for the last-30-second warning) ================= */
+  #displayView .timer-text-big.running,
+  #displayView .timer-text-big.paused,
+  #displayView .timer-text-big.done{ color:#ffd400; }
+  #displayView .main-timer-box.timeout-mode{ border-color:#ffd400; box-shadow:0 0 0 6px rgba(255,212,0,0.14), inset 0 0 30px rgba(0,0,0,0.35); }
+  #displayView .timeout-box{ background:rgba(18,35,59,0.88); border-color:#ffd400; }
+  #displayView .timeout-box-label,
+  #displayView .timeout-box-value{ color:#ffd400; }
+  html[data-theme="light"] #displayView .main-timer-box{ background:var(--pdf-navy); border-color:var(--pdf-yellow); }
+  html[data-theme="light"] #displayView .timer-text-big.running,
+  html[data-theme="light"] #displayView .timer-text-big.paused,
+  html[data-theme="light"] #displayView .timer-text-big.done{ color:#ffd400; }
+  html[data-theme="light"] #displayView .main-timer-box.timeout-mode{ border-color:#ffd400; }
+  html[data-theme="light"] #displayView .timeout-box{ background:var(--pdf-navy); border-color:var(--pdf-yellow); }
+  html[data-theme="light"] #displayView .timeout-box-label,
+  html[data-theme="light"] #displayView .timeout-box-value{ color:#ffd400; }
+
+  /* ================= UPDATE: white stop watch, bigger quarter boxes ================= */
+  #displayView .timer-text-big.running,
+  #displayView .timer-text-big.paused,
+  #displayView .timer-text-big.done,
+  html[data-theme="light"] #displayView .timer-text-big.running,
+  html[data-theme="light"] #displayView .timer-text-big.paused,
+  html[data-theme="light"] #displayView .timer-text-big.done{ color:#ffffff; }
+  #displayView .period-num-box{ width:min(15vh,10.5vw); height:min(15vh,10.5vw); font-size:min(10.5vh,7.6vw); border-radius:2vh; }
+  #displayView .seg-label-box{ font-size:min(5.6vh,3.8vw); padding:1.6vh 2.4vw; }
+  #displayView .centerpass-col{ gap:1.2vw; }
+  @media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4){
+    #displayView .period-num-box{ width:12vw; height:12vw; font-size:8.8vw; }
+    #displayView .seg-label-box{ width:21vw; font-size:3.7vw; }
+    #displayView .centerpass-col{ width:22vw; }
+  }
+
+  /* ================= UPDATE: stop watch turns red and blinks at 00:00 ================= */
+  @keyframes timeUpBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:.1;} }
+  #displayView .timer-text-big.done,
+  html[data-theme="light"] #displayView .timer-text-big.done{ color:#ff2a2a; animation:timeUpBlink .8s steps(1,end) infinite; }
+
+  /* ================= UPDATE: team names auto-fit up to score size ================= */
+  #displayView .team-name-col{ line-height:1.02; display:flex; align-items:center; justify-content:center; text-align:center; }
 </style>
 </head>
 <body>
@@ -1445,9 +1584,41 @@
     const len = Math.max(t.length, 4);
     const longest = Math.max.apply(null, t.split(/\s+/).map(w=>w.length).concat([4]));
     const perLine = Math.max(longest, Math.ceil(len/2)+1);
-    const vw = Math.max(2.2, Math.min(7.5, 35/(0.6*perLine))).toFixed(2);
+    const vw = Math.max(2.2, Math.min(7.5, 35/(0.68*perLine))).toFixed(2);
     const vh = Math.max(3.5, Math.min(9.5, 70/perLine*1.0)).toFixed(2);
     return 'calc(min(' + vh + 'vh, ' + vw + 'vw) * var(--name-scale, 1))';
+  }
+
+  // Fit a team name as large as possible - up to the same size as the score digits -
+  // while keeping it inside its column (max 2 lines, no word broken in the middle).
+  function fitTeamNameEl(el){
+    if(!el || !el.clientWidth) return;
+    const vw = window.innerWidth/100, vh = window.innerHeight/100;
+    const square = window.matchMedia('(min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4)').matches;
+    const key = el.textContent + '|' + Math.round(vw*100) + 'x' + Math.round(vh*100);
+    if(el.dataset.fitKey === key) return;
+    const maxSize = square ? Math.min(16.5*vh, 22*vw) : Math.min(19.8*vh, 14.3*vw);
+    const maxH = (square ? 17 : 21) * vh;
+    const prevWrap = el.style.overflowWrap;
+    el.style.overflowWrap = 'normal';
+    let lo = 8, hi = maxSize;
+    for(let i=0;i<14;i++){
+      const mid = (lo+hi)/2;
+      el.style.fontSize = mid + 'px';
+      const fits = el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= maxH;
+      if(fits) lo = mid; else hi = mid;
+    }
+    el.style.fontSize = Math.floor(lo*10)/10 + 'px';
+    el.style.overflowWrap = prevWrap || '';
+    el.dataset.fitKey = key;
+  }
+  window.addEventListener('resize', ()=>{
+    ['dispTeamA','dispTeamB'].forEach(id=>{ const e=document.getElementById(id); if(e){ delete e.dataset.fitKey; fitTeamNameEl(e);} });
+  });
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{
+      ['dispTeamA','dispTeamB'].forEach(id=>{ const e=document.getElementById(id); if(e){ delete e.dataset.fitKey; fitTeamNameEl(e);} });
+    });
   }
 
   let toastTimeout=null;
@@ -1636,6 +1807,61 @@
     });
   }
 
+
+  /* ---------- logo white-background remover ----------
+     Logos are uploaded/embedded as JPEGs with a white background. This flood-fills the white that
+     touches the image border and makes it transparent, so only the emblem itself shows on the board.
+     (White that is INSIDE the emblem, e.g. inside a circular crest, is kept.) */
+  const logoCache = {};      // original src -> processed transparent PNG data URL
+  const logoPending = {};
+  function removeWhiteBg(src){
+    return new Promise((resolve)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          const w = img.naturalWidth, h = img.naturalHeight;
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const id = ctx.getImageData(0,0,w,h), d = id.data;
+          const isWhite = (i)=> Math.min(d[i],d[i+1],d[i+2]) >= 225;
+          const seen = new Uint8Array(w*h);
+          const stack = [];
+          const push = (x,y)=>{ const k=y*w+x; if(!seen[k] && isWhite(k*4)){ seen[k]=1; stack.push(k); } };
+          for(let x=0;x<w;x++){ push(x,0); push(x,h-1); }
+          for(let y=0;y<h;y++){ push(0,y); push(w-1,y); }
+          while(stack.length){
+            const k = stack.pop(), x = k % w, y = (k - x) / w;
+            if(x>0) push(x-1,y); if(x<w-1) push(x+1,y);
+            if(y>0) push(x,y-1); if(y<h-1) push(x,y+1);
+          }
+          for(let k=0;k<w*h;k++){ if(seen[k]) d[k*4+3] = 0; }
+          // soften the fringe: light, partly-white pixels touching the removed area get partial transparency
+          for(let y=1;y<h-1;y++){ for(let x=1;x<w-1;x++){
+            const k=y*w+x; if(seen[k]) continue;
+            if(seen[k-1]||seen[k+1]||seen[k-w]||seen[k+w]){
+              const m = Math.min(d[k*4],d[k*4+1],d[k*4+2]);
+              if(m>150){ d[k*4+3] = Math.max(0, Math.round(255*(255-m)/105)); }
+            }
+          }}
+          ctx.putImageData(id,0,0);
+          resolve(c.toDataURL('image/png'));
+        }catch(e){ resolve(src); }
+      };
+      img.onerror = ()=>resolve(src);
+      img.src = src;
+    });
+  }
+  function logoSrcFor(src){
+    if(!src) return src;
+    if(logoCache[src]) return logoCache[src];
+    if(!logoPending[src]){
+      logoPending[src] = true;
+      removeWhiteBg(src).then(out=>{ logoCache[src] = out; });
+    }
+    return src; // original shown until the transparent version is ready (a fraction of a second)
+  }
+
   /* ---------- render ---------- */
   function render(){
     if(!localState) return;
@@ -1650,8 +1876,8 @@
       document.getElementById('dispTourneyTitle').textContent = state.tournamentName || 'National Netball Tournament';
       document.getElementById('dispTeamA').textContent = state.teamA;
       document.getElementById('dispTeamB').textContent = state.teamB;
-      document.getElementById('dispTeamA').style.fontSize = fitNameFontSize(state.teamA);
-      document.getElementById('dispTeamB').style.fontSize = fitNameFontSize(state.teamB);
+      fitTeamNameEl(document.getElementById('dispTeamA'));
+      fitTeamNameEl(document.getElementById('dispTeamB'));
       document.getElementById('dispTeamA').style.color = state.colorA;
       document.getElementById('dispTeamB').style.color = state.colorB;
       document.getElementById('dispScoreA').textContent = String(state.scoreA).padStart(2,'0');
@@ -1692,8 +1918,8 @@
       // Custom logos / organizer names (fall back to the built-in defaults if unset)
       const leftLogoImg = document.querySelector('#ministryLogoBadge img');
       const rightLogoImg = document.querySelector('#federationLogoBadge img');
-      if(leftLogoImg) leftLogoImg.src = state.leftLogoUrl || DEFAULT_LEFT_LOGO;
-      if(rightLogoImg) rightLogoImg.src = state.rightLogoUrl || DEFAULT_RIGHT_LOGO;
+      if(leftLogoImg){ const ns = logoSrcFor(state.leftLogoUrl || DEFAULT_LEFT_LOGO); if(leftLogoImg.getAttribute('src')!==ns) leftLogoImg.src = ns; }
+      if(rightLogoImg){ const ns = logoSrcFor(state.rightLogoUrl || DEFAULT_RIGHT_LOGO); if(rightLogoImg.getAttribute('src')!==ns) rightLogoImg.src = ns; }
       const leftLabelEl = document.getElementById('leftOrgLabel');
       const rightLabelEl = document.getElementById('rightOrgLabel');
       if(leftLabelEl){ if(state.leftOrgName) leftLabelEl.textContent = state.leftOrgName; else leftLabelEl.innerHTML = DEFAULT_LEFT_LABEL_HTML; }
